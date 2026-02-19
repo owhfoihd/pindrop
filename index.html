@@ -1,0 +1,2705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PinDrop</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+:root {
+  /* Palette: sage, slate-blue, dark-sage, blush */
+  --sage:       #97ac9f;
+  --slate:      #859eac;
+  --dark-sage:  #6e8175;
+  --blush:      #e6c8c6;
+  --blush-dark: #c9a5a2;
+
+  --bg:         #f4f6f4;
+  --surface:    #ffffff;
+  --surface2:   #eef0ed;
+  --border:     #dde2de;
+  --text:       #1c2420;
+  --text-muted: #5a6e64;
+  --text-light: #8fa899;
+
+  --accent:       var(--dark-sage);
+  --accent-light: #e5ebe7;
+  --accent-dark:  #556660;
+
+  --hunter:      #dce8e2;
+  --hunter-dark: #3d6654;
+  --brandon:     #d9e4eb;
+  --brandon-dark: #2d5268;
+  --other:       #ede8e7;
+  --other-dark:  #6b5a59;
+
+  --trip-color: var(--slate);
+  --trip-light: #dde6ec;
+  --wish-color: var(--blush-dark);
+  --wish-light: #f5ebe9;
+
+  --star-color: #b07d60;
+
+  --nav-h: 68px;
+  --radius: 14px;
+  --sys:   -apple-system, BlinkMacSystemFont, 'SF Pro Text',    'Helvetica Neue', sans-serif;
+  --sys-d: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: var(--sys); background: var(--bg); color: var(--text); min-height: 100dvh; max-width: 430px; margin: 0 auto; position: relative; overflow-x: hidden; }
+h1,h2,h3 { font-family: var(--sys-d); font-weight: 700; letter-spacing: -0.03em; }
+
+/* ── NAV ── */
+.nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--surface); border-top: 1px solid var(--border); display: flex; height: var(--nav-h); z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: none; background: none; cursor: pointer; color: var(--text-light); font-family: var(--sys); font-size: 9px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; transition: color 0.2s; }
+.nav-btn.active { color: var(--dark-sage); }
+.nav-btn svg { width: 22px; height: 22px; stroke-width: 1.7; }
+.nav-btn.add-btn .add-inner { width: 48px; height: 48px; border-radius: 50%; background: var(--dark-sage); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 18px rgba(110,129,117,0.45); transition: transform 0.15s; }
+.nav-btn.add-btn:active .add-inner { transform: scale(0.92); }
+
+/* ── VIEWS ── */
+.view { display: none; flex-direction: column; padding: 0 0 calc(var(--nav-h) + 8px); min-height: 100dvh; }
+.view.active { display: flex; }
+
+/* ── PAGE HEADER ── */
+.page-header { padding: 52px 20px 14px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+.page-header h2 { font-size: 26px; color: var(--text); }
+.page-header .sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.page-header-row { display: flex; align-items: flex-end; justify-content: space-between; }
+
+/* ── CHIPS ── */
+.controls { display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.controls::-webkit-scrollbar { display: none; }
+.chip { flex-shrink: 0; padding: 6px 13px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--surface); font-family: var(--sys); font-size: 12px; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.chip.active { background: var(--dark-sage); border-color: var(--dark-sage); color: #fff; }
+.chip.wish-chip.active { background: var(--wish-color); border-color: var(--wish-color); }
+.chip.trip-chip.active { background: var(--slate); border-color: var(--slate); }
+
+/* ── PLACE CARD ── */
+.place-list { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.place-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: box-shadow 0.15s; }
+.place-card:active { box-shadow: 0 0 0 2px var(--sage); }
+.place-card-inner { padding: 14px 16px; }
+.place-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.place-name { font-family: var(--sys-d); font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.place-loc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.place-cat { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: var(--accent-light); color: var(--dark-sage); white-space: nowrap; flex-shrink: 0; margin-left: 8px; cursor: pointer; letter-spacing: 0.02em; }
+.place-meta { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.rating-pair { display: flex; gap: 5px; }
+.rating-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 8px; display: flex; align-items: center; gap: 3px; }
+.rating-badge.hunter { background: var(--hunter); color: var(--hunter-dark); }
+.rating-badge.brandon { background: var(--brandon); color: var(--brandon-dark); }
+.visits-count { font-size: 11px; color: var(--text-light); margin-left: auto; }
+.tags-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.tag { font-size: 10px; padding: 2px 8px; border-radius: 8px; background: var(--surface2); color: var(--text-muted); cursor: pointer; transition: all 0.12s; }
+.tag:hover,.tag:active { background: var(--accent-light); color: var(--dark-sage); }
+.trip-badge { font-size: 10px; padding: 2px 7px; border-radius: 8px; background: var(--trip-light); color: var(--trip-color); font-weight: 600; }
+
+/* ── PLACE PHOTO STRIP ── */
+.photo-strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 0 16px 0; margin-top: 8px; }
+.photo-strip::-webkit-scrollbar { display: none; }
+.photo-thumb { width: 72px; height: 54px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+
+/* ── CALENDAR ── */
+.cal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 8px; }
+.cal-header h3 { font-size: 20px; }
+.cal-nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; padding: 0 12px; }
+.cal-day-label { text-align: center; font-size: 10px; font-weight: 700; color: var(--text-light); padding: 4px 0; letter-spacing: 0.06em; }
+.cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 13px; cursor: pointer; position: relative; transition: background 0.15s; }
+.cal-day:hover { background: var(--surface2); }
+.cal-day.today { font-weight: 700; color: var(--dark-sage); }
+.cal-day.has-visit::after { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--dark-sage); position: absolute; bottom: 3px; }
+.cal-day.other-month { color: var(--text-light); }
+.cal-day.selected { background: var(--dark-sage); color: #fff; }
+.cal-day.selected::after { background: rgba(255,255,255,0.7); }
+.cal-visits { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.cal-visit-card { background: var(--surface); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--border); cursor: pointer; }
+.cal-visit-place { font-family: var(--sys-d); font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+.cal-visit-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+/* ── STATS ── */
+.stats-container { padding: 0 0 20px; display: flex; flex-direction: column; gap: 0; }
+.stats-section { padding: 16px; border-bottom: 1px solid var(--border); }
+.stats-section:last-child { border-bottom: none; }
+.stats-section-label { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-card { background: var(--surface); border-radius: var(--radius); padding: 14px; border: 1px solid var(--border); }
+.stat-card.full { grid-column: 1/-1; }
+.stat-label { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: 0.06em; text-transform: uppercase; }
+.stat-value { font-family: var(--sys-d); font-size: 28px; font-weight: 700; color: var(--text); margin-top: 4px; line-height: 1; letter-spacing: -0.03em; }
+.stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+.stat-card.hunter-card .stat-value { color: var(--hunter-dark); }
+.stat-card.brandon-card .stat-value { color: var(--brandon-dark); }
+.stat-card.wish-card .stat-value { color: var(--wish-color); }
+.stat-card.trip-card .stat-value { color: var(--slate); }
+
+/* ── RATING BAR CHART ── */
+.rating-chart-wrap { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; }
+.rating-chart-title { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 14px; }
+.rating-bars { display: flex; align-items: flex-end; gap: 3px; height: 80px; }
+.rating-bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; }
+.rating-bar-track { flex: 1; display: flex; align-items: flex-end; width: 100%; }
+.rating-bar-fill { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.4s ease; min-height: 3px; }
+.rating-bar-fill.has-data { background: var(--dark-sage); }
+.rating-bar-fill.no-data { background: var(--border); border-radius: 3px; height: 3px !important; min-height: 3px; }
+.rating-bar-label { font-size: 8px; color: var(--text-light); margin-top: 4px; font-weight: 500; }
+
+/* ── PIE CHART (SVG) ── */
+.pie-wrap { display: flex; align-items: center; gap: 14px; }
+.pie-legend { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.pie-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); min-width: 0; }
+.pie-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.pie-legend-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pie-legend-count { font-weight: 700; color: var(--text); flex-shrink: 0; }
+
+/* ── BAR CHART HORIZONTAL ── */
+.hbar-chart { display: flex; flex-direction: column; gap: 8px; }
+.hbar-row { display: flex; align-items: center; gap: 8px; }
+.hbar-label { font-size: 12px; font-weight: 500; width: 100px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.hbar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.hbar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.hbar-count { font-size: 11px; color: var(--text-muted); width: 28px; text-align: right; flex-shrink: 0; }
+
+/* ── MODAL ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(28,36,32,0.42); backdrop-filter: blur(6px); z-index: 200; display: none; align-items: flex-end; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: 24px 24px 0 0; width: 100%; max-width: 430px; margin: 0 auto; max-height: 92dvh; overflow-y: auto; padding: 0 0 env(safe-area-inset-bottom); animation: slideUp 0.28s cubic-bezier(0.22,1,0.36,1); }
+@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } }
+.modal-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 12px auto 0; }
+.modal-header { padding: 14px 20px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.modal-title { font-family: var(--sys-d); font-size: 20px; font-weight: 700; letter-spacing: -0.03em; }
+.modal-close { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--surface2); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── FORM ── */
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.02em; }
+.form-input,.form-select,.form-textarea { width: 100%; padding: 11px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); font-family: var(--sys); font-size: 14px; color: var(--text); outline: none; transition: border-color 0.15s; }
+.form-input:focus,.form-select:focus,.form-textarea:focus { border-color: var(--dark-sage); background: #fff; }
+.form-textarea { resize: none; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-hint { font-size: 11px; color: var(--text-light); }
+
+/* ── TAGS INPUT ── */
+.tags-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); cursor: text; min-height: 44px; align-items: center; }
+.tags-input-wrap:focus-within { border-color: var(--dark-sage); background: #fff; }
+.tag-pill { display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 8px; background: var(--accent-light); color: var(--dark-sage); font-size: 12px; }
+.tag-pill button { background: none; border: none; cursor: pointer; color: var(--dark-sage); font-size: 14px; line-height: 1; padding: 0; }
+.tags-input-wrap input { border: none; background: none; outline: none; font-family: var(--sys); font-size: 14px; min-width: 80px; flex: 1; }
+
+/* ── BTNS ── */
+.btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-family: var(--sys); font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-primary { background: var(--dark-sage); color: #fff; }
+.btn-primary:active { transform: scale(0.98); background: var(--accent-dark); }
+.btn-secondary { background: var(--surface2); color: var(--text); }
+.btn-danger { background: #f5eae9; color: #a0413b; }
+.btn-wish { background: var(--wish-light); color: var(--wish-color); }
+.btn-trip { background: var(--trip-light); color: var(--trip-color); }
+.btn-sm { width: auto; padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+
+/* ── FULLSCREEN MODAL ── */
+.fullscreen-modal { align-items: flex-start; }
+.fullscreen-modal .modal { border-radius: 0; max-height: 100dvh; height: 100dvh; }
+.fullscreen-header { position: sticky; top: 0; background: var(--surface); z-index: 10; padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.fullscreen-header h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fullscreen-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; padding-bottom: 40px; }
+
+/* ── DETAIL ── */
+.detail-hero { padding: 16px 20px 14px; border-bottom: 1px solid var(--border); }
+.detail-loc { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+.detail-badges { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.detail-sections { padding: 0 0 20px; }
+.detail-section { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.detail-section-title { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+.place-map-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dark-sage); text-decoration: none; padding: 4px 0; margin-top: 6px; }
+
+/* ── VISIT ITEM ── */
+.visit-item { background: var(--bg); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; border: 1px solid var(--border); }
+.visit-item-date { font-size: 13px; font-weight: 700; }
+.visit-item-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── THREAD ── */
+.thread { display: flex; flex-direction: column; gap: 10px; }
+.thread-msg { display: flex; flex-direction: column; max-width: 78%; }
+.thread-msg.hunter { align-self: flex-start; }
+.thread-msg.brandon { align-self: flex-end; }
+.thread-msg.other { align-self: center; max-width: 90%; }
+.bubble { padding: 10px 13px; border-radius: 16px; font-size: 13.5px; line-height: 1.5; word-break: break-word; }
+.hunter .bubble { background: var(--hunter); color: #1a3028; border-bottom-left-radius: 4px; }
+.brandon .bubble { background: var(--brandon); color: #102030; border-bottom-right-radius: 4px; }
+.other .bubble { background: var(--other); color: #2a1e1e; border-radius: 10px; }
+.bubble-meta { display: flex; gap: 8px; margin-top: 4px; font-size: 10px; color: var(--text-light); align-items: center; }
+.hunter .bubble-meta { padding-left: 4px; }
+.brandon .bubble-meta { justify-content: flex-end; padding-right: 4px; }
+.other .bubble-meta { justify-content: center; }
+.bubble-author { font-weight: 700; }
+.hunter .bubble-author { color: var(--hunter-dark); }
+.brandon .bubble-author { color: var(--brandon-dark); }
+.other .bubble-author { color: var(--other-dark); }
+.bubble-actions { display: flex; gap: 4px; margin-left: auto; }
+.bubble-action-btn { background: none; border: none; cursor: pointer; font-size: 10px; color: var(--text-light); padding: 0 3px; }
+.add-note-bar { display: flex; gap: 8px; margin-top: 4px; }
+.add-note-bar select,.add-note-bar input,.add-note-bar button { font-family: var(--sys); }
+.add-note-bar select { flex-shrink: 0; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); font-size: 12px; outline: none; }
+.add-note-bar input { flex: 1; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); font-size: 13px; outline: none; }
+.add-note-bar button { flex-shrink: 0; padding: 8px 14px; border-radius: 10px; border: none; background: var(--dark-sage); color: #fff; font-size: 13px; cursor: pointer; font-weight: 700; }
+
+/* ── STAR RATING INPUT ── */
+.star-input-wrap { display: flex; gap: 2px; align-items: center; }
+.star-input-btn { font-size: 26px; cursor: pointer; color: var(--border); user-select: none; -webkit-user-select: none; background: none; border: none; padding: 0 2px; line-height: 1; transition: color 0.1s; }
+.star-input-btn.lit { color: var(--star-color); }
+.star-input-btn.half-lit { color: var(--star-color); }
+
+/* ── STAR DISPLAY ── */
+.stars-display { color: var(--star-color); font-size: 13px; letter-spacing: -1px; }
+.desire-stars { color: var(--wish-color); font-size: 12px; letter-spacing: -1px; }
+
+/* ── PHOTO UPLOAD ── */
+.photo-upload-strip { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+.photo-upload-strip::-webkit-scrollbar { display: none; }
+.photo-add-btn { width: 72px; height: 72px; border-radius: 10px; border: 1.5px dashed var(--border); background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; color: var(--text-light); font-size: 10px; gap: 4px; }
+.photo-add-btn svg { width: 20px; height: 20px; }
+.photo-thumb-wrap { position: relative; flex-shrink: 0; }
+.photo-thumb-wrap img { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; display: block; }
+.photo-thumb-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(28,36,32,0.7); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; line-height: 1; }
+
+/* ── EMPTY ── */
+.empty-state { text-align: center; padding: 60px 30px; color: var(--text-muted); }
+.empty-state svg { width: 48px; height: 48px; stroke: var(--border); margin-bottom: 16px; }
+.empty-state h3 { font-family: var(--sys-d); font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 8px; letter-spacing: -0.02em; }
+.empty-state p { font-size: 13px; line-height: 1.6; }
+
+/* ── SEARCH ── */
+.search-wrap { padding: 10px 16px 0; }
+.search-input { width: 100%; padding: 10px 14px 10px 38px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); font-family: var(--sys); font-size: 14px; outline: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238fa899' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 12px center; transition: border-color 0.15s; }
+.search-input:focus { border-color: var(--dark-sage); }
+
+/* ── SECTION TITLE INLINE ── */
+.section-title { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+.visited-with-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.vw-tag { font-size: 12px; padding: 4px 10px; border-radius: 8px; background: var(--surface2); color: var(--text-muted); }
+
+/* ── WISHLIST ── */
+.wish-list-wrap { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.wish-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px 16px; cursor: pointer; transition: box-shadow 0.15s; }
+.wish-card:active { box-shadow: 0 0 0 2px var(--blush); }
+.wish-name { font-family: var(--sys-d); font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.wish-loc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.wish-meta { display: flex; gap: 8px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+.wish-priority { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; letter-spacing: 0.02em; }
+.wish-priority.high { background: #f5eae9; color: #a0413b; }
+.wish-priority.medium { background: #f5f1e4; color: #7a6120; }
+.wish-priority.low { background: var(--surface2); color: var(--text-muted); }
+.wish-cat { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; background: var(--wish-light); color: var(--wish-color); }
+
+/* ── TRIP SELECT ── */
+.trip-select-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: var(--bg); border: 1.5px solid var(--border); cursor: pointer; margin-bottom: 6px; transition: border-color 0.15s; }
+.trip-select-item.selected { border-color: var(--slate); background: var(--trip-light); }
+.trip-select-item-name { font-size: 14px; font-weight: 500; flex: 1; }
+.trip-select-item-dates { font-size: 11px; color: var(--text-muted); }
+.trip-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--slate); flex-shrink: 0; }
+
+/* ── TRIP CARDS ── */
+.trip-card-list { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+.trip-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; cursor: pointer; }
+.trip-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.trip-name { font-family: var(--sys-d); font-size: 17px; font-weight: 600; letter-spacing: -0.02em; }
+.trip-dates { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.trip-meta-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.trip-stat { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; }
+
+/* ── MAP ── */
+#map-container { width: 100%; flex: 1; position: relative; }
+#leaflet-map { width: 100%; height: 100%; z-index: 1; }
+.map-mode-row { position: absolute; bottom: calc(var(--nav-h) + 16px); left: 16px; right: 16px; z-index: 10; display: flex; gap: 4px; background: var(--surface); border-radius: 12px; padding: 4px; box-shadow: 0 4px 20px rgba(28,36,32,0.15); }
+.map-mode-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; font-family: var(--sys); font-size: 11px; font-weight: 700; cursor: pointer; background: none; color: var(--text-muted); transition: all 0.15s; letter-spacing: 0.02em; }
+.map-mode-btn.active { background: var(--dark-sage); color: #fff; }
+.map-wish-toggle { position: absolute; top: 12px; right: 12px; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-family: var(--sys); font-size: 12px; font-weight: 700; cursor: pointer; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.map-wish-toggle.active { background: var(--wish-color); color: #fff; border-color: var(--wish-color); }
+.leaflet-popup-content-wrapper { font-family: var(--sys) !important; border-radius: 12px !important; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(28,36,32,0.14) !important; }
+.leaflet-popup-tip-container { display: none; }
+.map-popup-name { font-family: var(--sys-d); font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+.map-popup-loc { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.map-popup-badge { font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 700; display: inline-block; }
+
+/* ── TIMELINE ── */
+.timeline { display: flex; flex-direction: column; }
+.timeline-item { display: flex; gap: 12px; }
+.timeline-dot-wrap { display: flex; flex-direction: column; align-items: center; width: 20px; flex-shrink: 0; padding-top: 4px; }
+.timeline-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dark-sage); flex-shrink: 0; }
+.timeline-line { flex: 1; width: 2px; background: var(--border); margin: 3px 0; min-height: 12px; }
+.timeline-content { flex: 1; padding-bottom: 12px; }
+.timeline-date { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 2px; }
+.timeline-name { font-size: 14px; font-weight: 600; cursor: pointer; color: var(--dark-sage); }
+.timeline-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── CAT BREAKDOWN ── */
+.cat-breakdown { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── TOAST ── */
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 13px; z-index: 999; pointer-events: none; animation: fadeInOut 2.2s ease forwards; white-space: nowrap; }
+@keyframes fadeInOut { 0%{opacity:0;transform:translateX(-50%) translateY(-8px)} 15%{opacity:1;transform:translateX(-50%) translateY(0)} 80%{opacity:1} 100%{opacity:0} }
+
+/* ── DISCOVER VIEW ── */
+.discover-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.discover-form-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.discover-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mood-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+.mood-btn { padding: 9px 6px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); font-family: var(--sys); font-size: 11px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text-muted); }
+.mood-btn.active { border-color: var(--dark-sage); background: var(--accent-light); color: var(--dark-sage); }
+.energy-row { display: flex; gap: 6px; }
+.energy-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg); font-family: var(--sys); font-size: 11px; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text-muted); }
+.energy-btn.active { border-color: var(--dark-sage); background: var(--accent-light); color: var(--dark-sage); }
+.discover-generate-btn { background: var(--dark-sage); color: #fff; border: none; border-radius: 12px; padding: 14px; font-family: var(--sys); font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; transition: all 0.15s; }
+.discover-generate-btn:active { transform: scale(0.98); background: var(--accent-dark); }
+.discover-result { display: none; flex-direction: column; gap: 14px; }
+.discover-result.visible { display: flex; }
+.disc-primary { background: var(--surface); border-radius: var(--radius); border: 2px solid var(--dark-sage); overflow: hidden; }
+.disc-primary-header { background: var(--dark-sage); padding: 14px 16px; }
+.disc-primary-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+.disc-primary-name { font-family: var(--sys-d); font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+.disc-primary-loc { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.disc-score-row { display: flex; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.disc-score-ring { flex-shrink: 0; }
+.disc-score-info { flex: 1; }
+.disc-score-num { font-family: var(--sys-d); font-size: 28px; font-weight: 700; color: var(--dark-sage); line-height: 1; letter-spacing: -0.03em; }
+.disc-confidence { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 8px; display: inline-block; margin-top: 3px; }
+.disc-confidence.high { background: var(--accent-light); color: var(--dark-sage); }
+.disc-confidence.medium { background: #f5f1e4; color: #7a6120; }
+.disc-confidence.low { background: var(--surface2); color: var(--text-muted); }
+.disc-reasons { padding: 12px 16px; }
+.disc-reasons-title { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+.disc-reason-item { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; line-height: 1.4; }
+.disc-reason-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--sage); flex-shrink: 0; margin-top: 5px; }
+.disc-alts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.disc-alt-card { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 12px; }
+.disc-alt-label { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-light); text-transform: uppercase; margin-bottom: 4px; }
+.disc-alt-name { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+.disc-alt-loc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.disc-alt-score { font-size: 12px; font-weight: 700; color: var(--dark-sage); margin-top: 6px; }
+.disc-wildcard { background: linear-gradient(135deg, #e6c8c6 0%, #dde6ec 100%); border-radius: var(--radius); border: 1px solid var(--blush); padding: 14px 16px; }
+.disc-wildcard-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--blush-dark); margin-bottom: 4px; }
+.disc-wildcard-name { font-family: var(--sys-d); font-size: 17px; font-weight: 700; color: var(--text); }
+.disc-wildcard-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.disc-empty { text-align: center; padding: 30px 16px; color: var(--text-muted); font-size: 13px; background: var(--surface); border-radius: var(--radius); border: 1px dashed var(--border); }
+
+/* ── DRIVE SYNC ── */
+.sync-bar { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; z-index: 150; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 11px; transition: transform 0.3s; }
+.sync-bar.hidden { transform: translateX(-50%) translateY(-100%); }
+.sync-status { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sync-dot.synced { background: #5a9e7a; }
+.sync-dot.syncing { background: var(--slate); animation: pulse 1s infinite; }
+.sync-dot.offline { background: var(--text-light); }
+.sync-dot.error { background: #a0413b; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.sync-btn { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-family: var(--sys); font-size: 11px; font-weight: 700; cursor: pointer; color: var(--text-muted); }
+.drive-setup-card { background: var(--surface2); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px 16px; margin: 16px; }
+.drive-setup-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.drive-setup-sub { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+/* ── ENHANCED STATS ── */
+.stats-chart-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; overflow: hidden; }
+.stats-chart-title { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 12px; }
+.stats-chart-toggle { display: flex; gap: 4px; margin-bottom: 12px; }
+.stats-toggle-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: none; font-family: var(--sys); font-size: 10px; font-weight: 700; cursor: pointer; color: var(--text-muted); }
+.stats-toggle-btn.active { background: var(--dark-sage); border-color: var(--dark-sage); color: #fff; }
+.country-heat-table { display: flex; flex-direction: column; gap: 6px; }
+.country-heat-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; position: relative; overflow: hidden; }
+.country-heat-bg { position: absolute; inset: 0; pointer-events: none; border-radius: 8px; }
+.country-heat-name { font-size: 13px; font-weight: 600; flex: 1; position: relative; }
+.country-heat-visits { font-size: 11px; color: var(--text-muted); position: relative; width: 40px; text-align: right; }
+.country-heat-rating { font-size: 11px; font-weight: 700; position: relative; color: var(--dark-sage); width: 32px; text-align: right; }
+.scatter-svg { display: block; width: 100%; }
+.circ-progress-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.circ-progress-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.trip-perf-card { background: var(--bg); border-radius: 10px; padding: 12px 14px; border: 1px solid var(--border); }
+.trip-perf-name { font-size: 14px; font-weight: 700; }
+.trip-perf-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; margin-bottom: 8px; }
+.trip-perf-bar-track { height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.trip-perf-bar-fill { height: 100%; border-radius: 3px; background: var(--dark-sage); transition: width 0.5s ease; }
+
+::-webkit-scrollbar { width: 0; }
+body.modal-open { overflow: hidden; }
+</style>
+</head>
+<body>
+
+<!-- ── LIST VIEW ── -->
+<div id="view-list" class="view active">
+  <div class="page-header">
+    <div class="page-header-row">
+      <div><h2>PinDrop</h2><div class="sub" id="list-count">0 places</div></div>
+    </div>
+  </div>
+  <div class="search-wrap"><input class="search-input" id="search-input" type="search" placeholder="Search places&#x2026;"></div>
+  <div class="controls" id="sort-chips">
+    <button class="chip active" data-sort="name">A&#x2013;Z</button>
+    <button class="chip" data-sort="rating">Top Rated</button>
+    <button class="chip" data-sort="visits">Most Visited</button>
+    <button class="chip" data-sort="recent">Recent</button>
+  </div>
+  <div class="controls" id="filter-chips" style="padding-top:0;margin-top:-4px;"></div>
+  <div class="place-list" id="place-list"></div>
+</div>
+
+<!-- ── MAP VIEW ── -->
+<div id="view-map" class="view" style="padding:0;">
+  <div class="page-header" style="padding:52px 20px 10px;"><h2>Map</h2></div>
+  <div id="map-container">
+    <div id="leaflet-map"></div>
+    <button class="map-wish-toggle" id="map-wish-toggle">Wishlist</button>
+    <div class="map-mode-row">
+      <button class="map-mode-btn active" data-mode="markers">Markers</button>
+      <button class="map-mode-btn" data-mode="heatmap">Heat</button>
+      <button class="map-mode-btn" data-mode="choropleth">Regions</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CALENDAR VIEW ── -->
+<div id="view-calendar" class="view">
+  <div class="page-header"><h2>Calendar</h2></div>
+  <div class="cal-header">
+    <button class="cal-nav-btn" id="cal-prev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 18-6-6 6-6"/></svg></button>
+    <h3 id="cal-month-label"></h3>
+    <button class="cal-nav-btn" id="cal-next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  <div class="cal-visits" id="cal-visits"></div>
+</div>
+
+<!-- ── STATS VIEW ── -->
+<div id="view-stats" class="view">
+  <div class="page-header"><h2>Stats</h2></div>
+  <div class="stats-container" id="stats-container"></div>
+</div>
+
+<!-- ── WISHLIST VIEW ── -->
+<div id="view-wishlist" class="view">
+  <div class="page-header">
+    <div class="page-header-row">
+      <div><h2>Wishlist</h2><div class="sub" id="wish-count">0 items</div></div>
+      <button class="btn btn-sm btn-wish" id="add-wish-btn" style="width:auto;">+ Add</button>
+    </div>
+  </div>
+  <div class="controls" id="wish-filter-chips"></div>
+  <div class="wish-list-wrap" id="wish-list"></div>
+</div>
+
+<!-- ── DISCOVER VIEW ── -->
+<div id="view-discover" class="view">
+  <div class="page-header">
+    <div class="page-header-row">
+      <div><h2>Discover</h2><div class="sub">Smart destination suggestions</div></div>
+    </div>
+  </div>
+  <div class="discover-body">
+    <div class="discover-form-card">
+      <div class="form-group">
+        <label class="form-label">Mood</label>
+        <div class="mood-grid">
+          <button class="mood-btn active" data-mood="mixed">Any Vibe</button>
+          <button class="mood-btn" data-mood="food-focused">Food</button>
+          <button class="mood-btn" data-mood="relaxing">Relaxing</button>
+          <button class="mood-btn" data-mood="culture">Culture</button>
+          <button class="mood-btn" data-mood="nature">Nature</button>
+          <button class="mood-btn" data-mood="romantic">Romantic</button>
+        </div>
+      </div>
+      <div class="discover-form-row">
+        <div class="form-group">
+          <label class="form-label">Trip Length</label>
+          <select class="form-select" id="disc-length">
+            <option value="weekend">Weekend</option>
+            <option value="5-7">5&#x2013;7 Days</option>
+            <option value="1-2wk" selected>1&#x2013;2 Weeks</option>
+            <option value="extended">Extended</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Month</label>
+          <select class="form-select" id="disc-month">
+            <option value="">Any</option>
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Region (optional)</label>
+        <input class="form-input" id="disc-region" type="text" placeholder="e.g. Europe, Southeast Asia&#x2026;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Energy Level</label>
+        <div class="energy-row">
+          <button class="energy-btn active" data-energy="medium">&#x25CF; Medium</button>
+          <button class="energy-btn" data-energy="low">&#x25CB; Low</button>
+          <button class="energy-btn" data-energy="high">&#x25CF;&#x25CF; High</button>
+        </div>
+      </div>
+      <button class="discover-generate-btn" id="disc-generate-btn">Generate Suggestion</button>
+    </div>
+    <div class="discover-result" id="discover-result">
+      <!-- filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ── DRIVE SYNC BAR ── -->
+<div class="sync-bar hidden" id="sync-bar">
+  <div class="sync-status" id="sync-status">
+    <div class="sync-dot offline" id="sync-dot"></div>
+    <span id="sync-label">Drive not connected</span>
+  </div>
+  <button class="sync-btn" id="sync-action-btn">Setup</button>
+</div>
+
+<!-- ── BOTTOM NAV ── -->
+<!-- ── BOTTOM NAV ── -->
+<nav class="nav">
+  <button class="nav-btn active" data-view="list">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+    List
+  </button>
+  <button class="nav-btn" data-view="map">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="3 7 9 4 15 7 21 4 21 17 15 20 9 17 3 20"/><line x1="9" y1="4" x2="9" y2="17"/><line x1="15" y1="7" x2="15" y2="20"/></svg>
+    Map
+  </button>
+  <button class="nav-btn add-btn" id="add-btn">
+    <div class="add-inner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+  </button>
+  <button class="nav-btn" data-view="discover">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+    Discover
+  </button>
+  <button class="nav-btn" data-view="stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    Stats
+  </button>
+</nav>
+
+<!-- ══ MODAL: ADD CHOICE ══ -->
+<div class="modal-overlay" id="modal-add-choice">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header"><span class="modal-title">Add to PinDrop</span><button class="modal-close" id="add-choice-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="modal-body">
+      <button class="btn btn-primary" id="choice-place">&#x25CE; Add Place</button>
+      <button class="btn btn-trip" id="choice-trip">&#x2708; Add Trip</button>
+      <button class="btn btn-wish" id="choice-wish">&#x2665; Add to Wishlist</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADD PLACE ══ -->
+<div class="modal-overlay" id="modal-add-place">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="add-place-title">Add Place</span>
+      <button class="modal-close" id="add-place-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Google Maps URL</label>
+        <input class="form-input" id="place-maps-url" type="url" placeholder="Paste Maps link to auto-fill&#x2026;">
+        <div class="form-hint">Optional &#x2014; extracts name &amp; coordinates</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="parse-maps-btn" style="width:auto;align-self:flex-start">Parse Link</button>
+      <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="place-name" type="text"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">City</label><input class="form-input" id="place-city" type="text"></div>
+        <div class="form-group"><label class="form-label">State / Region</label><input class="form-input" id="place-state" type="text"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Country</label><input class="form-input" id="place-country" type="text" value="United States"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Latitude</label><input class="form-input" id="place-lat" type="number" step="any"></div>
+        <div class="form-group"><label class="form-label">Longitude</label><input class="form-input" id="place-lng" type="number" step="any"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Altitude (ft)</label><input class="form-input" id="place-alt" type="number"></div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="place-category">
+          <option value="">Select&#x2026;</option>
+          <option>Restaurant</option><option>Bar / Cocktail</option><option>Hotel / Lodging</option>
+          <option>Hike / Nature</option><option>City / Neighborhood</option><option>Museum / Culture</option>
+          <option>Beach</option><option>Market / Shop</option><option>Brewery / Winery</option>
+          <option>Experience</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Sub-Tags</label><div class="tags-input-wrap" id="subtags-wrap"><input type="text" id="subtags-input" placeholder="Type tag + Enter&#x2026;"></div></div>
+      <div class="form-group"><label class="form-label">Default Visited With</label><div class="tags-input-wrap" id="vw-wrap"><input type="text" id="vw-input" placeholder="e.g. Family, Friends&#x2026;"></div></div>
+      <div class="form-group">
+        <label class="form-label">Photos</label>
+        <div class="photo-upload-strip" id="place-photos-strip">
+          <label class="photo-add-btn" for="place-photo-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Add Photo
+          </label>
+          <input type="file" id="place-photo-input" accept="image/*" multiple style="display:none">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="save-place-btn">Save Place &amp; Add First Visit &#x2192;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADD/EDIT VISIT ══ -->
+<div class="modal-overlay" id="modal-add-visit">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="add-visit-title">Add Visit</span>
+      <button class="modal-close" id="add-visit-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Date *</label><input class="form-input" id="visit-date" type="date"></div>
+      <div class="form-group"><label class="form-label">Hunter Rating <span style="font-size:10px;color:var(--text-light);font-weight:400;">(click = whole star, double-click = half)</span></label><div id="hunter-rating-input" class="star-input-wrap"></div></div>
+      <div class="form-group"><label class="form-label">Brandon Rating <span style="font-size:10px;color:var(--text-light);font-weight:400;">(click = whole star, double-click = half)</span></label><div id="brandon-rating-input" class="star-input-wrap"></div></div>
+      <div class="form-group"><label class="form-label">Visited With</label><div class="tags-input-wrap" id="visit-vw-wrap"><input type="text" id="visit-vw-input" placeholder="Who came along?"></div></div>
+      <div class="form-group"><label class="form-label">Assign to Trip</label><div id="visit-trip-select"></div></div>
+      <div class="form-group">
+        <label class="form-label">Photos</label>
+        <div class="photo-upload-strip" id="visit-photos-strip">
+          <label class="photo-add-btn" for="visit-photo-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Add Photo
+          </label>
+          <input type="file" id="visit-photo-input" accept="image/*" multiple style="display:none">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="save-visit-btn">Save Visit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: PLACE DETAIL ══ -->
+<div class="modal-overlay fullscreen-modal" id="modal-place-detail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header" style="position:sticky;top:0;background:var(--surface);z-index:10;">
+      <span class="modal-title" id="detail-place-name" style="font-size:17px;"></span>
+      <button class="modal-close" id="detail-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="detail-hero">
+      <div class="detail-loc" id="detail-loc"></div>
+      <div class="detail-badges" id="detail-badges"></div>
+      <a id="detail-maps-link" class="place-map-link" href="#" target="_blank" rel="noopener" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Open in Maps
+      </a>
+    </div>
+    <div id="detail-photo-strip-wrap" style="display:none;padding:12px 20px 0;"><div class="photo-strip" id="detail-photo-strip"></div></div>
+    <div class="detail-sections">
+      <div class="detail-section">
+        <div class="detail-section-title">Visits</div>
+        <div id="detail-visits-list"></div>
+        <button class="btn btn-secondary btn-sm" id="detail-add-visit-btn" style="margin-top:8px;">+ Add Visit</button>
+      </div>
+      <div class="detail-section"><div class="detail-section-title">Tags</div><div class="tags-row" id="detail-tags-row"></div></div>
+      <div class="detail-section">
+        <div class="detail-section-title">Actions</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" id="detail-edit-place-btn">Edit Place</button>
+          <button class="btn btn-wish btn-sm" id="detail-to-wish-btn">&#x2192; Wishlist</button>
+          <button class="btn btn-danger btn-sm" id="detail-delete-place-btn">Delete Place</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: VISIT DETAIL ══ -->
+<div class="modal-overlay fullscreen-modal" id="modal-visit-detail">
+  <div class="modal">
+    <div class="fullscreen-header">
+      <button class="back-btn" id="visit-detail-back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+      <h3 id="visit-detail-title">Visit</h3>
+    </div>
+    <div class="fullscreen-body">
+      <div><div class="section-title">Ratings</div><div id="visit-ratings-display" style="display:flex;gap:10px;flex-wrap:wrap;"></div></div>
+      <div><div class="section-title">Visited With</div><div class="visited-with-row" id="visit-vw-display"></div></div>
+      <div id="visit-trip-display-wrap" style="display:none;"><div class="section-title">Trip</div><div id="visit-trip-display"></div></div>
+      <div id="visit-photos-display-wrap" style="display:none;"><div class="section-title">Photos</div><div class="photo-strip" id="visit-photos-display"></div></div>
+      <div>
+        <div class="section-title">Notes</div>
+        <div class="thread" id="visit-thread"></div>
+        <div class="add-note-bar" style="margin-top:12px;">
+          <select id="note-author-select"><option>Hunter</option><option>Brandon</option><option>Other</option></select>
+          <input type="text" id="note-text-input" placeholder="Write a note&#x2026;">
+          <button id="add-note-btn">Send</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" id="visit-edit-btn">Edit Visit</button>
+        <button class="btn btn-danger btn-sm" id="visit-delete-btn">Delete Visit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADD/EDIT TRIP ══ -->
+<div class="modal-overlay" id="modal-add-trip">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="add-trip-title">New Trip</span>
+      <button class="modal-close" id="add-trip-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Trip Name *</label><input class="form-input" id="trip-name" type="text"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" id="trip-start" type="date"></div>
+        <div class="form-group"><label class="form-label">End Date</label><input class="form-input" id="trip-end" type="date"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Primary City</label><input class="form-input" id="trip-city" type="text"></div>
+        <div class="form-group"><label class="form-label">Country</label><input class="form-input" id="trip-country" type="text"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="trip-notes"></textarea></div>
+      <div class="form-group"><label class="form-label">Tags</label><div class="tags-input-wrap" id="trip-tags-wrap"><input type="text" id="trip-tags-input"></div></div>
+      <button class="btn btn-primary" id="save-trip-btn">Save Trip</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: TRIP DETAIL ══ -->
+<div class="modal-overlay fullscreen-modal" id="modal-trip-detail">
+  <div class="modal">
+    <div class="fullscreen-header">
+      <button class="back-btn" id="trip-detail-back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+      <h3 id="trip-detail-title">Trip</h3>
+      <button class="btn btn-secondary btn-sm" id="trip-edit-btn" style="margin-left:auto;">Edit</button>
+    </div>
+    <div class="fullscreen-body" id="trip-detail-body"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADD/EDIT WISHLIST ══ -->
+<div class="modal-overlay" id="modal-add-wish">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="add-wish-title">Add to Wishlist</span>
+      <button class="modal-close" id="add-wish-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="wish-name" type="text"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">City</label><input class="form-input" id="wish-city" type="text"></div>
+        <div class="form-group"><label class="form-label">Country</label><input class="form-input" id="wish-country" type="text"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Latitude</label><input class="form-input" id="wish-lat" type="number" step="any"></div>
+        <div class="form-group"><label class="form-label">Longitude</label><input class="form-input" id="wish-lng" type="number" step="any"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="wish-category">
+          <option value="">Select&#x2026;</option>
+          <option>Restaurant</option><option>Bar / Cocktail</option><option>Hotel / Lodging</option>
+          <option>Hike / Nature</option><option>City / Neighborhood</option><option>Museum / Culture</option>
+          <option>Beach</option><option>Market / Shop</option><option>Brewery / Winery</option>
+          <option>Experience</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Tags</label><div class="tags-input-wrap" id="wish-tags-wrap"><input type="text" id="wish-tags-input"></div></div>
+      <div class="form-group">
+        <label class="form-label">Priority</label>
+        <select class="form-select" id="wish-priority"><option value="high">&#x25CF; High</option><option value="medium" selected>&#x25CE; Medium</option><option value="low">&#x25CB; Low</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Desire Rating (0&#x2013;5)</label><div id="wish-desire-input" class="star-input-wrap"></div></div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="wish-notes"></textarea></div>
+      <button class="btn btn-primary" id="save-wish-btn">Save to Wishlist</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: WISH DETAIL ══ -->
+<div class="modal-overlay fullscreen-modal" id="modal-wish-detail">
+  <div class="modal">
+    <div class="fullscreen-header">
+      <button class="back-btn" id="wish-detail-back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+      <h3 id="wish-detail-title">Wishlist Item</h3>
+    </div>
+    <div class="fullscreen-body" id="wish-detail-body"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ═══════════════════════════════════════════
+//  DATA LAYER
+// ═══════════════════════════════════════════
+const DB = {
+  get places()   { return JSON.parse(localStorage.getItem('pd_places')   ||'[]'); },
+  set places(v)  { localStorage.setItem('pd_places',   JSON.stringify(v)); },
+  get visits()   { return JSON.parse(localStorage.getItem('pd_visits')   ||'[]'); },
+  set visits(v)  { localStorage.setItem('pd_visits',   JSON.stringify(v)); },
+  get trips()    { return JSON.parse(localStorage.getItem('pd_trips')    ||'[]'); },
+  set trips(v)   { localStorage.setItem('pd_trips',    JSON.stringify(v)); },
+  get wishlist() { return JSON.parse(localStorage.getItem('pd_wishlist') ||'[]'); },
+  set wishlist(v){ localStorage.setItem('pd_wishlist', JSON.stringify(v)); },
+};
+
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function _origSavePlace(p){ const a=DB.places,i=a.findIndex(x=>x.id===p.id); if(i>=0)a[i]=p;else a.push(p); DB.places=a; }
+function _origDeletePlace(id){ DB.places=DB.places.filter(p=>p.id!==id); DB.visits=DB.visits.filter(v=>v.placeId!==id); }
+function _origSaveVisit(v){ const a=DB.visits,i=a.findIndex(x=>x.id===v.id); if(i>=0)a[i]=v;else a.push(v); DB.visits=a; updatePlaceStats(v.placeId); }
+function _origDeleteVisit(id){ const v=DB.visits.find(x=>x.id===id); DB.visits=DB.visits.filter(x=>x.id!==id); if(v) updatePlaceStats(v.placeId); }
+function _origSaveTrip(t){ const a=DB.trips,i=a.findIndex(x=>x.id===t.id); if(i>=0)a[i]=t;else a.push(t); DB.trips=a; }
+function _origDeleteTrip(id){ DB.trips=DB.trips.filter(t=>t.id!==id); const vis=DB.visits; vis.forEach(v=>{ if(v.tripId===id) v.tripId=null; }); DB.visits=vis; }
+function _origSaveWish(w){ const a=DB.wishlist,i=a.findIndex(x=>x.id===w.id); if(i>=0)a[i]=w;else a.push(w); DB.wishlist=a; }
+function _origDeleteWish(id){ DB.wishlist=DB.wishlist.filter(w=>w.id!==id); }
+
+function updatePlaceStats(placeId){
+  const places=DB.places, p=places.find(x=>x.id===placeId); if(!p) return;
+  const visits=DB.visits.filter(v=>v.placeId===placeId);
+  p.totalVisits=visits.length;
+  const hr=visits.map(v=>v.hunterRating).filter(r=>r>0), br=visits.map(v=>v.brandonRating).filter(r=>r>0);
+  p.hunterAvg=hr.length?(hr.reduce((a,b)=>a+b,0)/hr.length):0;
+  p.brandonAvg=br.length?(br.reduce((a,b)=>a+b,0)/br.length):0;
+  p.avgRating=(hr.length+br.length)?([...hr,...br].reduce((a,b)=>a+b,0)/(hr.length+br.length)):0;
+  if(visits.length){ const s=[...visits].sort((a,b)=>a.date.localeCompare(b.date)); p.firstVisited=s[0].date; }
+  DB.places=places;
+}
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let currentSort='name', currentFilter=null, searchQuery='', tagFilter=null;
+let editingPlaceId=null, currentPlaceId=null, currentVisitId=null;
+let editingTripId=null, currentTripId=null;
+let editingWishId=null, currentWishId=null;
+let calYear, calMonth, calSelectedDate=null, wishFilterCat=null;
+let mapInitialized=false, leafletMap=null, mapMode='markers', showWishOnMap=false;
+let mapLayer=null, mapWishLayer=null;
+let placePhotoDataURLs=[], visitPhotoDataURLs=[];
+
+const subTags     ={wrap:'subtags-wrap',input:'subtags-input',tags:[]};
+const vwTags      ={wrap:'vw-wrap',input:'vw-input',tags:[]};
+const visitVwTags ={wrap:'visit-vw-wrap',input:'visit-vw-input',tags:[]};
+const tripTagsCfg ={wrap:'trip-tags-wrap',input:'trip-tags-input',tags:[]};
+const wishTagsCfg ={wrap:'wish-tags-wrap',input:'wish-tags-input',tags:[]};
+
+// ═══════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════
+document.querySelectorAll('.nav-btn[data-view]').forEach(btn=>{
+  btn.addEventListener('click',()=>switchView(btn.dataset.view,btn));
+});
+
+// ═══════════════════════════════════════════
+//  TAGS INPUT
+// ═══════════════════════════════════════════
+function initTagsInput(cfg){
+  cfg.tags=[];
+  const wrap=document.getElementById(cfg.wrap), inp=document.getElementById(cfg.input);
+  if(!wrap||!inp) return;
+  inp.addEventListener('keydown',e=>{
+    if((e.key==='Enter'||e.key===',')&&inp.value.trim()){e.preventDefault();addTag(cfg,inp.value.trim());inp.value='';}
+    if(e.key==='Backspace'&&!inp.value&&cfg.tags.length) removeTag(cfg,cfg.tags.length-1);
+  });
+  wrap.addEventListener('click',()=>inp.focus());
+}
+function addTag(cfg,t){ if(cfg.tags.includes(t)) return; cfg.tags.push(t); renderTagPills(cfg); }
+function removeTag(cfg,i){ cfg.tags.splice(i,1); renderTagPills(cfg); }
+function setTags(cfg,arr){ cfg.tags=[...(arr||[])]; renderTagPills(cfg); }
+function renderTagPills(cfg){
+  const wrap=document.getElementById(cfg.wrap), inp=document.getElementById(cfg.input);
+  wrap.querySelectorAll('.tag-pill').forEach(p=>p.remove());
+  cfg.tags.forEach((t,i)=>{
+    const pill=document.createElement('span'); pill.className='tag-pill';
+    pill.innerHTML=`${escHtml(t)}<button type="button">&times;</button>`;
+    pill.querySelector('button').addEventListener('click',()=>removeTag(cfg,i));
+    wrap.insertBefore(pill,inp);
+  });
+}
+[subTags,vwTags,visitVwTags,tripTagsCfg,wishTagsCfg].forEach(initTagsInput);
+
+// ═══════════════════════════════════════════
+//  STAR RATING INPUT (click=whole, dblclick=half)
+// ═══════════════════════════════════════════
+function renderStarInput(containerId, maxStars=5){
+  const container=document.getElementById(containerId); if(!container) return null;
+  container.innerHTML=''; let val=0;
+  const btns=[];
+  for(let i=1;i<=maxStars;i++){
+    const btn=document.createElement('button');
+    btn.type='button'; btn.className='star-input-btn'; btn.textContent='\u2605';
+    btn.dataset.star=i;
+    // single click = whole star
+    btn.addEventListener('click',()=>{ val=i; refreshStars(); });
+    // double click = half star
+    btn.addEventListener('dblclick',e=>{ e.preventDefault(); val=i-0.5; refreshStars(); });
+    // hover
+    btn.addEventListener('mouseenter',()=>btns.forEach((b,j)=>b.style.color=j<i?'var(--star-color)':'var(--border)'));
+    container.appendChild(btn); btns.push(btn);
+  }
+  container.addEventListener('mouseleave',refreshStars);
+  function refreshStars(){
+    const full=Math.floor(val), half=val%1>=0.5;
+    btns.forEach((b,j)=>{
+      if(j<full){ b.style.color='var(--star-color)'; b.textContent='\u2605'; }
+      else if(j===full&&half){ b.style.color='var(--star-color)'; b.textContent='\u00BD'; }
+      else{ b.style.color='var(--border)'; b.textContent='\u2605'; }
+    });
+  }
+  container.getValue=()=>val;
+  container.setValue=v=>{ val=v; refreshStars(); };
+  refreshStars(); return container;
+}
+
+function starsDisplay(rating){
+  if(!rating) return '<span style="color:var(--text-light);font-size:12px;">\u2014</span>';
+  const full=Math.floor(rating), half=rating%1>=0.5;
+  return `<span class="stars-display">${'\u2605'.repeat(full)}${half?'\u00BD':''}</span> <span style="font-size:12px;color:var(--text-muted);">${rating.toFixed(1)}</span>`;
+}
+function desireStars(r){ if(!r) return '\u2014'; return `<span class="desire-stars">${'\u2665'.repeat(Math.round(r))}</span> <span style="font-size:11px;color:var(--text-muted);">${r.toFixed(1)}</span>`; }
+
+// ═══════════════════════════════════════════
+//  PHOTO UPLOAD
+// ═══════════════════════════════════════════
+function initPhotoUpload(inputId, stripId, photosArr){
+  const input=document.getElementById(inputId);
+  if(!input) return;
+  input.addEventListener('change',e=>{
+    const files=Array.from(e.target.files);
+    files.forEach(f=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        photosArr.push(ev.target.result);
+        renderPhotoStrip(stripId,inputId,photosArr);
+      };
+      reader.readAsDataURL(f);
+    });
+    input.value='';
+  });
+}
+function renderPhotoStrip(stripId,inputId,photosArr){
+  const strip=document.getElementById(stripId); if(!strip) return;
+  strip.innerHTML='';
+  photosArr.forEach((src,i)=>{
+    const wrap=document.createElement('div'); wrap.className='photo-thumb-wrap';
+    const img=document.createElement('img'); img.className='photo-thumb'; img.src=src;
+    const del=document.createElement('button'); del.className='photo-thumb-del'; del.innerHTML='&times;';
+    del.addEventListener('click',()=>{ photosArr.splice(i,1); renderPhotoStrip(stripId,inputId,photosArr); });
+    wrap.appendChild(img); wrap.appendChild(del); strip.appendChild(wrap);
+  });
+  // re-add the add button label
+  const label=document.createElement('label'); label.className='photo-add-btn'; label.htmlFor=inputId;
+  label.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Add Photo`;
+  strip.appendChild(label);
+}
+
+// ═══════════════════════════════════════════
+//  MAPS URL PARSER
+// ═══════════════════════════════════════════
+function parseMapsUrl(url){
+  const r={name:'',lat:null,lng:null,city:'',state:'',country:''};
+  try{
+    const atM=url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if(atM){r.lat=parseFloat(atM[1]);r.lng=parseFloat(atM[2]);}
+    const plM=url.match(/\/place\/([^/@?]+)/);
+    if(plM){const raw=decodeURIComponent(plM[1]).replace(/\+/g,' ').replace(/_/g,' '); const pts=raw.split(',').map(s=>s.trim()).filter(Boolean); if(pts[0])r.name=pts[0]; if(pts[1])r.city=pts[1]; if(pts[2])r.state=pts[2]; if(pts[3])r.country=pts[3];}
+    const qM=url.match(/[?&]q=([^&]+)/);
+    if(qM&&!r.name){const raw=decodeURIComponent(qM[1]).replace(/\+/g,' '); const pts=raw.split(',').map(s=>s.trim()).filter(Boolean); if(pts[0])r.name=pts[0]; if(pts[1]&&!r.city)r.city=pts[1]; if(pts[2]&&!r.state)r.state=pts[2]; if(pts[3]&&!r.country)r.country=pts[3];}
+    const dM=url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
+    if(dM&&!r.lat){r.lat=parseFloat(dM[1]);r.lng=parseFloat(dM[2]);}
+  }catch(e){}
+  return r;
+}
+
+// ═══════════════════════════════════════════
+//  ADD PLACE
+// ═══════════════════════════════════════════
+document.getElementById('add-place-close').addEventListener('click',()=>closeModal('modal-add-place'));
+document.getElementById('parse-maps-btn').addEventListener('click',()=>{
+  const url=document.getElementById('place-maps-url').value.trim(); if(!url) return;
+  const p=parseMapsUrl(url);
+  if(p.name) document.getElementById('place-name').value=p.name;
+  if(p.lat)  document.getElementById('place-lat').value=p.lat;
+  if(p.lng)  document.getElementById('place-lng').value=p.lng;
+  if(p.city) document.getElementById('place-city').value=p.city;
+  if(p.state)document.getElementById('place-state').value=p.state;
+  if(p.country)document.getElementById('place-country').value=p.country;
+  toast('Parsed! Fill in any missing fields.');
+});
+
+function openAddPlace(placeId=null){
+  editingPlaceId=placeId; placePhotoDataURLs=[];
+  document.getElementById('add-place-title').textContent=placeId?'Edit Place':'Add Place';
+  if(placeId){
+    const p=DB.places.find(x=>x.id===placeId);
+    document.getElementById('place-maps-url').value=p.mapsUrl||'';
+    document.getElementById('place-name').value=p.name||'';
+    document.getElementById('place-city').value=p.city||'';
+    document.getElementById('place-state').value=p.state||'';
+    document.getElementById('place-country').value=p.country||'';
+    document.getElementById('place-lat').value=p.lat||'';
+    document.getElementById('place-lng').value=p.lng||'';
+    document.getElementById('place-alt').value=p.altitude||'';
+    document.getElementById('place-category').value=p.category||'';
+    setTags(subTags,p.subTags||[]); setTags(vwTags,p.defaultVisitedWith||[]);
+    if(p.photos) placePhotoDataURLs=[...p.photos];
+  } else {
+    ['place-maps-url','place-name','place-city','place-state','place-lat','place-lng','place-alt'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('place-country').value='United States';
+    document.getElementById('place-category').value='';
+    setTags(subTags,[]); setTags(vwTags,[]);
+  }
+  renderPhotoStrip('place-photos-strip','place-photo-input',placePhotoDataURLs);
+  initPhotoUpload('place-photo-input','place-photos-strip',placePhotoDataURLs);
+  openModal('modal-add-place');
+}
+
+document.getElementById('save-place-btn').addEventListener('click',()=>{
+  const name=document.getElementById('place-name').value.trim(); if(!name){toast('Name is required');return;}
+  const p=editingPlaceId?{...DB.places.find(x=>x.id===editingPlaceId)}:{id:uid(),totalVisits:0,hunterAvg:0,brandonAvg:0,avgRating:0,firstVisited:null};
+  p.name=name; p.city=document.getElementById('place-city').value.trim();
+  p.state=document.getElementById('place-state').value.trim();
+  p.country=document.getElementById('place-country').value.trim();
+  p.lat=parseFloat(document.getElementById('place-lat').value)||null;
+  p.lng=parseFloat(document.getElementById('place-lng').value)||null;
+  p.altitude=parseFloat(document.getElementById('place-alt').value)||null;
+  p.mapsUrl=document.getElementById('place-maps-url').value.trim();
+  p.category=document.getElementById('place-category').value;
+  p.subTags=[...subTags.tags]; p.defaultVisitedWith=[...vwTags.tags];
+  p.photos=[...placePhotoDataURLs];
+  savePlace(p); closeModal('modal-add-place'); renderList();
+  if(!editingPlaceId){ setTimeout(()=>openAddVisit(p.id),320); }
+  else { toast('Place updated'); if(currentPlaceId===p.id) openPlaceDetail(p.id); }
+});
+
+// ═══════════════════════════════════════════
+//  ADD VISIT
+// ═══════════════════════════════════════════
+let hunterCtrl,brandonCtrl,editingVisitId=null;
+document.getElementById('add-visit-close').addEventListener('click',()=>closeModal('modal-add-visit'));
+
+function openAddVisit(placeId,visitId=null){
+  currentPlaceId=placeId; editingVisitId=visitId; visitPhotoDataURLs=[];
+  const p=DB.places.find(x=>x.id===placeId);
+  document.getElementById('add-visit-title').textContent=visitId?'Edit Visit':`Visit \u2013 ${p?.name||'Place'}`;
+  document.getElementById('visit-date').value=new Date().toISOString().slice(0,10);
+  hunterCtrl=renderStarInput('hunter-rating-input',5);
+  brandonCtrl=renderStarInput('brandon-rating-input',5);
+  if(visitId){
+    const v=DB.visits.find(x=>x.id===visitId);
+    document.getElementById('visit-date').value=v.date;
+    hunterCtrl.setValue(v.hunterRating||0); brandonCtrl.setValue(v.brandonRating||0);
+    setTags(visitVwTags,v.visitedWith||[]);
+    if(v.photos) visitPhotoDataURLs=[...v.photos];
+  } else {
+    setTags(visitVwTags,p?.defaultVisitedWith||[]);
+  }
+  renderTripSelect(visitId?DB.visits.find(x=>x.id===visitId)?.tripId:null);
+  renderPhotoStrip('visit-photos-strip','visit-photo-input',visitPhotoDataURLs);
+  initPhotoUpload('visit-photo-input','visit-photos-strip',visitPhotoDataURLs);
+  openModal('modal-add-visit');
+}
+
+function renderTripSelect(selTripId){
+  const trips=DB.trips, wrap=document.getElementById('visit-trip-select'); wrap.innerHTML='';
+  if(!trips.length){wrap.innerHTML='<p style="font-size:12px;color:var(--text-light);">No trips yet.</p>';return;}
+  const none=document.createElement('div'); none.className='trip-select-item'+(selTripId?'':' selected');
+  none.innerHTML='<span class="trip-select-item-name">No trip</span>';
+  none.addEventListener('click',()=>{wrap.querySelectorAll('.trip-select-item').forEach(x=>x.classList.remove('selected'));none.classList.add('selected');});
+  wrap.appendChild(none);
+  trips.forEach(t=>{
+    const el=document.createElement('div'); el.className='trip-select-item'+(t.id===selTripId?' selected':'');
+    el.innerHTML=`<div class="trip-indicator"></div><span class="trip-select-item-name">${escHtml(t.name)}</span><span class="trip-select-item-dates">${t.startDate?formatDate(t.startDate):''}</span>`;
+    el.addEventListener('click',()=>{wrap.querySelectorAll('.trip-select-item').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');});
+    wrap.appendChild(el);
+  });
+}
+function getSelTripId(){
+  const s=document.querySelector('#visit-trip-select .trip-select-item.selected'); if(!s) return null;
+  const n=s.querySelector('.trip-select-item-name'); if(!n||n.textContent==='No trip') return null;
+  return DB.trips.find(t=>t.name===n.textContent)?.id||null;
+}
+document.getElementById('save-visit-btn').addEventListener('click',()=>{
+  const date=document.getElementById('visit-date').value; if(!date){toast('Date required');return;}
+  const v=editingVisitId?{...DB.visits.find(x=>x.id===editingVisitId)}:{id:uid(),placeId:currentPlaceId,notes:[],tripId:null};
+  v.date=date; v.hunterRating=hunterCtrl.getValue(); v.brandonRating=brandonCtrl.getValue();
+  v.visitedWith=[...visitVwTags.tags]; v.tripId=getSelTripId(); v.photos=[...visitPhotoDataURLs];
+  saveVisit(v); closeModal('modal-add-visit'); toast(editingVisitId?'Visit updated':'Visit added!'); renderList();
+  setTimeout(()=>{if(currentPlaceId) openPlaceDetail(currentPlaceId);},350);
+});
+
+// ═══════════════════════════════════════════
+//  PLACE DETAIL
+// ═══════════════════════════════════════════
+document.getElementById('detail-close').addEventListener('click',()=>closeModal('modal-place-detail'));
+document.getElementById('detail-add-visit-btn').addEventListener('click',()=>{ closeModal('modal-place-detail'); setTimeout(()=>openAddVisit(currentPlaceId),320); });
+document.getElementById('detail-edit-place-btn').addEventListener('click',()=>{ closeModal('modal-place-detail'); setTimeout(()=>openAddPlace(currentPlaceId),320); });
+document.getElementById('detail-delete-place-btn').addEventListener('click',()=>{ if(!confirm('Delete this place and all its visits?')) return; deletePlace(currentPlaceId); closeModal('modal-place-detail'); renderList(); toast('Place deleted'); });
+document.getElementById('detail-to-wish-btn').addEventListener('click',()=>{
+  const p=DB.places.find(x=>x.id===currentPlaceId); if(!p) return;
+  closeModal('modal-place-detail');
+  setTimeout(()=>openAddWish(null,{name:p.name,city:p.city,country:p.country,lat:p.lat,lng:p.lng,category:p.category,subTags:p.subTags}),320);
+});
+
+function openPlaceDetail(placeId){
+  currentPlaceId=placeId;
+  const p=DB.places.find(x=>x.id===placeId); if(!p) return;
+  const visits=DB.visits.filter(v=>v.placeId===placeId).sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('detail-place-name').textContent=p.name;
+  document.getElementById('detail-loc').textContent=[p.city,p.state,p.country].filter(Boolean).join(', ');
+  const badges=document.getElementById('detail-badges'); badges.innerHTML='';
+  if(p.category) badges.innerHTML+=`<span class="place-cat" data-cat="${escHtml(p.category)}">${escHtml(p.category)}</span>`;
+  if(p.hunterAvg) badges.innerHTML+=`<span class="rating-badge hunter">H: ${starsDisplay(p.hunterAvg)}</span>`;
+  if(p.brandonAvg) badges.innerHTML+=`<span class="rating-badge brandon">B: ${starsDisplay(p.brandonAvg)}</span>`;
+  if(p.altitude) badges.innerHTML+=`<span class="tag">\u26F0 ${p.altitude.toLocaleString()}ft</span>`;
+  badges.querySelectorAll('[data-cat]').forEach(el=>el.addEventListener('click',()=>{closeModal('modal-place-detail');filterByTag(el.dataset.cat,'category');}));
+  const mLink=document.getElementById('detail-maps-link');
+  if(p.mapsUrl){mLink.href=p.mapsUrl;mLink.style.display='inline-flex';}
+  else if(p.lat&&p.lng){mLink.href=`https://maps.google.com/?q=${p.lat},${p.lng}`;mLink.style.display='inline-flex';}
+  else mLink.style.display='none';
+  // photos
+  const photoWrap=document.getElementById('detail-photo-strip-wrap'), photoStrip=document.getElementById('detail-photo-strip');
+  if(p.photos?.length){ photoWrap.style.display=''; photoStrip.innerHTML=p.photos.map(src=>`<img class="photo-thumb" src="${src}">`).join(''); } else photoWrap.style.display='none';
+  // visits
+  const vList=document.getElementById('detail-visits-list'); vList.innerHTML='';
+  if(!visits.length){vList.innerHTML='<p style="font-size:13px;color:var(--text-light);">No visits yet.</p>';}
+  else visits.forEach(v=>{
+    const trip=v.tripId?DB.trips.find(t=>t.id===v.tripId):null;
+    const card=document.createElement('div'); card.className='visit-item';
+    card.innerHTML=`<div class="visit-item-date">${formatDate(v.date)}</div>
+      <div class="visit-item-meta">
+        <span>H: ${v.hunterRating||'\u2014'}</span><span>B: ${v.brandonRating||'\u2014'}</span>
+        ${v.visitedWith?.length?`<span>\u00B7 ${v.visitedWith.join(', ')}</span>`:''}
+        ${trip?`<span class="trip-badge">${escHtml(trip.name)}</span>`:''}
+        ${v.notes?.length?`<span style="margin-left:auto;color:var(--dark-sage);">\u25CF ${v.notes.length}</span>`:''}
+        ${v.photos?.length?`<span style="color:var(--text-light);">\u{1F4F7}${v.photos.length}</span>`:''}
+      </div>`;
+    card.addEventListener('click',()=>{closeModal('modal-place-detail');setTimeout(()=>openVisitDetail(v.id),320);});
+    vList.appendChild(card);
+  });
+  // tags
+  const tagsRow=document.getElementById('detail-tags-row'); tagsRow.innerHTML='';
+  [...(p.subTags||[]),...(p.defaultVisitedWith||[])].forEach(t=>{
+    const el=document.createElement('span'); el.className='tag'; el.textContent=t;
+    el.addEventListener('click',()=>{closeModal('modal-place-detail');filterByTag(t,'tag');});
+    tagsRow.appendChild(el);
+  });
+  if(!tagsRow.children.length) tagsRow.innerHTML='<span style="font-size:12px;color:var(--text-light);">No tags</span>';
+  openModal('modal-place-detail');
+}
+
+// ═══════════════════════════════════════════
+//  VISIT DETAIL
+// ═══════════════════════════════════════════
+document.getElementById('visit-detail-back').addEventListener('click',()=>{closeModal('modal-visit-detail');setTimeout(()=>openPlaceDetail(currentPlaceId),320);});
+document.getElementById('visit-edit-btn').addEventListener('click',()=>{closeModal('modal-visit-detail');setTimeout(()=>openAddVisit(currentPlaceId,currentVisitId),320);});
+document.getElementById('visit-delete-btn').addEventListener('click',()=>{
+  if(!confirm('Delete this visit?')) return;
+  deleteVisit(currentVisitId); closeModal('modal-visit-detail'); renderList(); toast('Visit deleted');
+  setTimeout(()=>openPlaceDetail(currentPlaceId),320);
+});
+document.getElementById('add-note-btn').addEventListener('click',()=>{
+  const text=document.getElementById('note-text-input').value.trim(); if(!text) return;
+  const author=document.getElementById('note-author-select').value;
+  const visits=DB.visits, v=visits.find(x=>x.id===currentVisitId); if(!v) return;
+  if(!v.notes) v.notes=[];
+  v.notes.push({id:uid(),author,text,ts:new Date().toISOString()});
+  DB.visits=visits; document.getElementById('note-text-input').value=''; renderThread();
+});
+document.getElementById('note-text-input').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('add-note-btn').click();});
+
+function openVisitDetail(visitId){
+  currentVisitId=visitId;
+  const v=DB.visits.find(x=>x.id===visitId); if(!v) return;
+  const p=DB.places.find(x=>x.id===v.placeId); currentPlaceId=v.placeId;
+  document.getElementById('visit-detail-title').textContent=`${p?.name||'Visit'} \u2013 ${formatDate(v.date)}`;
+  document.getElementById('visit-ratings-display').innerHTML=`
+    <div class="rating-badge hunter" style="padding:8px 12px;"><div><div style="font-size:9px;font-weight:700;letter-spacing:0.05em;margin-bottom:3px;">HUNTER</div>${starsDisplay(v.hunterRating)}</div></div>
+    <div class="rating-badge brandon" style="padding:8px 12px;"><div><div style="font-size:9px;font-weight:700;letter-spacing:0.05em;margin-bottom:3px;">BRANDON</div>${starsDisplay(v.brandonRating)}</div></div>`;
+  document.getElementById('visit-vw-display').innerHTML=(v.visitedWith?.length)
+    ?v.visitedWith.map(t=>`<span class="vw-tag">${escHtml(t)}</span>`).join('')
+    :'<span style="font-size:12px;color:var(--text-light);">\u2014</span>';
+  const tripW=document.getElementById('visit-trip-display-wrap'), tripD=document.getElementById('visit-trip-display');
+  if(v.tripId){
+    const trip=DB.trips.find(t=>t.id===v.tripId);
+    if(trip){tripD.innerHTML=`<span class="trip-badge" style="padding:5px 10px;font-size:12px;cursor:pointer;">${escHtml(trip.name)}</span>`;tripD.querySelector('.trip-badge').addEventListener('click',()=>{closeModal('modal-visit-detail');setTimeout(()=>openTripDetail(trip.id),320);});tripW.style.display='';}else tripW.style.display='none';
+  } else tripW.style.display='none';
+  // visit photos
+  const vPhotoWrap=document.getElementById('visit-photos-display-wrap'), vPhotoStrip=document.getElementById('visit-photos-display');
+  if(v.photos?.length){vPhotoWrap.style.display='';vPhotoStrip.innerHTML=v.photos.map(src=>`<img class="photo-thumb" src="${src}">`).join('');}else vPhotoWrap.style.display='none';
+  renderThread(); openModal('modal-visit-detail');
+}
+
+function renderThread(){
+  const v=DB.visits.find(x=>x.id===currentVisitId); if(!v) return;
+  const thread=document.getElementById('visit-thread'); thread.innerHTML='';
+  if(!v.notes||!v.notes.length){thread.innerHTML='<p style="font-size:13px;color:var(--text-light);text-align:center;padding:12px 0;">No notes yet. Start the conversation!</p>';return;}
+  v.notes.forEach((note,idx)=>{
+    const cls=note.author==='Hunter'?'hunter':note.author==='Brandon'?'brandon':'other';
+    const msg=document.createElement('div'); msg.className=`thread-msg ${cls}`;
+    msg.innerHTML=`<div class="bubble">${escHtml(note.text)}</div>
+      <div class="bubble-meta">
+        <span class="bubble-author">${note.author}</span><span>${formatTime(note.ts)}</span>
+        <div class="bubble-actions"><button class="bubble-action-btn" data-edit="${idx}">\u270F</button><button class="bubble-action-btn" data-del="${idx}">\u2715</button></div>
+      </div>`;
+    thread.appendChild(msg);
+  });
+  thread.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>editNote(parseInt(b.dataset.edit))));
+  thread.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>deleteNote(parseInt(b.dataset.del))));
+}
+function editNote(i){const visits=DB.visits,v=visits.find(x=>x.id===currentVisitId);const note=v.notes[i];const t=prompt('Edit note:',note.text);if(t===null)return;note.text=t.trim();note.ts=new Date().toISOString();DB.visits=visits;renderThread();}
+function deleteNote(i){if(!confirm('Delete note?'))return;const visits=DB.visits,v=visits.find(x=>x.id===currentVisitId);v.notes.splice(i,1);DB.visits=visits;renderThread();}
+
+// ═══════════════════════════════════════════
+//  ADD BUTTON
+// ═══════════════════════════════════════════
+document.getElementById('add-btn').addEventListener('click',()=>openModal('modal-add-choice'));
+document.getElementById('add-choice-close').addEventListener('click',()=>closeModal('modal-add-choice'));
+document.getElementById('choice-place').addEventListener('click',()=>{closeModal('modal-add-choice');setTimeout(()=>openAddPlace(),200);});
+document.getElementById('choice-trip').addEventListener('click',()=>{closeModal('modal-add-choice');setTimeout(()=>openAddTrip(),200);});
+document.getElementById('choice-wish').addEventListener('click',()=>{closeModal('modal-add-choice');setTimeout(()=>openAddWish(),200);});
+
+// ═══════════════════════════════════════════
+//  LIST
+// ═══════════════════════════════════════════
+document.getElementById('search-input').addEventListener('input',e=>{searchQuery=e.target.value.toLowerCase();renderList();});
+document.getElementById('sort-chips').addEventListener('click',e=>{
+  const chip=e.target.closest('.chip');if(!chip)return;
+  document.querySelectorAll('#sort-chips .chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');currentSort=chip.dataset.sort;renderList();
+});
+
+function filterByTag(value,type){
+  switchView('list');
+  if(type==='category') currentFilter=value;
+  else if(type==='tag') tagFilter=value;
+  renderList();
+}
+
+function renderFilterChips(){
+  const categories=[...new Set(DB.places.map(p=>p.category).filter(Boolean))];
+  const trips=DB.trips;
+  const wrap=document.getElementById('filter-chips');wrap.innerHTML='';
+  const all=document.createElement('button');all.className='chip'+((!currentFilter&&!tagFilter)?' active':'');all.textContent='All';
+  all.addEventListener('click',()=>{currentFilter=null;tagFilter=null;renderFilterChips();renderList();});
+  wrap.appendChild(all);
+  categories.forEach(cat=>{
+    const c=document.createElement('button');c.className='chip'+(currentFilter===cat?' active':'');c.textContent=cat;
+    c.addEventListener('click',()=>{currentFilter=cat;tagFilter=null;renderFilterChips();renderList();});wrap.appendChild(c);
+  });
+  trips.forEach(t=>{
+    const c=document.createElement('button');c.className='chip trip-chip'+(currentFilter===('trip:'+t.id)?' active':'');c.textContent=t.name;
+    c.addEventListener('click',()=>{currentFilter='trip:'+t.id;tagFilter=null;renderFilterChips();renderList();});wrap.appendChild(c);
+  });
+  if(tagFilter){
+    const c=document.createElement('button');c.className='chip active';c.textContent='\u2715 '+tagFilter;
+    c.addEventListener('click',()=>{tagFilter=null;renderFilterChips();renderList();});wrap.appendChild(c);
+  }
+}
+
+function renderList(){
+  renderFilterChips();
+  let places=DB.places;
+  if(currentFilter?.startsWith('trip:')){
+    const tid=currentFilter.slice(5);const ids=new Set(DB.visits.filter(v=>v.tripId===tid).map(v=>v.placeId));
+    places=places.filter(p=>ids.has(p.id));
+  } else if(currentFilter){
+    places=places.filter(p=>p.category===currentFilter);
+  }
+  if(tagFilter) places=places.filter(p=>p.subTags?.includes(tagFilter)||p.defaultVisitedWith?.includes(tagFilter));
+  if(searchQuery) places=places.filter(p=>p.name?.toLowerCase().includes(searchQuery)||p.city?.toLowerCase().includes(searchQuery)||p.country?.toLowerCase().includes(searchQuery)||p.category?.toLowerCase().includes(searchQuery));
+  switch(currentSort){
+    case 'name':   places.sort((a,b)=>a.name.localeCompare(b.name)); break;
+    case 'rating': places.sort((a,b)=>(b.avgRating||0)-(a.avgRating||0)); break;
+    case 'visits': places.sort((a,b)=>(b.totalVisits||0)-(a.totalVisits||0)); break;
+    case 'recent': places.sort((a,b)=>(b.firstVisited||'').localeCompare(a.firstVisited||'')); break;
+  }
+  document.getElementById('list-count').textContent=`${places.length} place${places.length!==1?'s':''}`;
+  const list=document.getElementById('place-list');list.innerHTML='';
+  if(!places.length){list.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><h3>No places yet</h3><p>Tap + to add your first PinDrop.</p></div>`;return;}
+  places.forEach(p=>{
+    const tripIds=[...new Set(DB.visits.filter(v=>v.placeId===p.id&&v.tripId).map(v=>v.tripId))];
+    const tripBadges=tripIds.map(tid=>{const t=DB.trips.find(x=>x.id===tid);return t?`<span class="trip-badge">${escHtml(t.name)}</span>`:''}).join('');
+    const card=document.createElement('div');card.className='place-card';
+    const firstPhoto=p.photos?.[0];
+    card.innerHTML=`<div class="place-card-inner">
+      ${firstPhoto?`<img src="${firstPhoto}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:10px;display:block;">`:''}
+      <div class="place-card-top">
+        <div><div class="place-name">${escHtml(p.name)}</div><div class="place-loc">${[p.city,p.state,p.country].filter(Boolean).join(', ')}</div></div>
+        ${p.category?`<span class="place-cat" data-cat="${escHtml(p.category)}">${escHtml(p.category)}</span>`:''}
+      </div>
+      <div class="place-meta">
+        <div class="rating-pair">
+          ${p.hunterAvg?`<span class="rating-badge hunter">H ${p.hunterAvg.toFixed(1)}</span>`:''}
+          ${p.brandonAvg?`<span class="rating-badge brandon">B ${p.brandonAvg.toFixed(1)}</span>`:''}
+        </div>
+        ${tripBadges}
+        <span class="visits-count">${p.totalVisits||0} visit${p.totalVisits!==1?'s':''}</span>
+      </div>
+      ${(p.subTags?.length)?`<div class="tags-row">${p.subTags.map(t=>`<span class="tag" data-tag="${escHtml(t)}">${escHtml(t)}</span>`).join('')}</div>`:''}
+    </div>`;
+    card.addEventListener('click',()=>openPlaceDetail(p.id));
+    card.querySelectorAll('[data-cat]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();filterByTag(el.dataset.cat,'category');}));
+    card.querySelectorAll('[data-tag]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();filterByTag(el.dataset.tag,'tag');}));
+    list.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════
+//  TRIPS
+// ═══════════════════════════════════════════
+document.getElementById('add-trip-close').addEventListener('click',()=>closeModal('modal-add-trip'));
+function openAddTrip(tripId=null){
+  editingTripId=tripId;
+  document.getElementById('add-trip-title').textContent=tripId?'Edit Trip':'New Trip';
+  if(tripId){
+    const t=DB.trips.find(x=>x.id===tripId);
+    document.getElementById('trip-name').value=t.name||'';
+    document.getElementById('trip-start').value=t.startDate||'';
+    document.getElementById('trip-end').value=t.endDate||'';
+    document.getElementById('trip-city').value=t.primaryCity||'';
+    document.getElementById('trip-country').value=t.primaryCountry||'';
+    document.getElementById('trip-notes').value=t.notes||'';
+    setTags(tripTagsCfg,t.tags||[]);
+  } else {
+    ['trip-name','trip-start','trip-end','trip-city','trip-country','trip-notes'].forEach(id=>document.getElementById(id).value='');
+    setTags(tripTagsCfg,[]);
+  }
+  openModal('modal-add-trip');
+}
+document.getElementById('save-trip-btn').addEventListener('click',()=>{
+  const name=document.getElementById('trip-name').value.trim();if(!name){toast('Name required');return;}
+  const t=editingTripId?{...DB.trips.find(x=>x.id===editingTripId)}:{id:uid()};
+  t.name=name;t.startDate=document.getElementById('trip-start').value;
+  t.endDate=document.getElementById('trip-end').value;
+  t.primaryCity=document.getElementById('trip-city').value.trim();
+  t.primaryCountry=document.getElementById('trip-country').value.trim();
+  t.notes=document.getElementById('trip-notes').value.trim();
+  t.tags=[...tripTagsCfg.tags];
+  saveTrip(t);closeModal('modal-add-trip');toast(editingTripId?'Trip updated':'Trip saved!');renderFilterChips();
+  if(currentTripId===t.id) openTripDetail(t.id);
+});
+document.getElementById('trip-detail-back').addEventListener('click',()=>closeModal('modal-trip-detail'));
+document.getElementById('trip-edit-btn').addEventListener('click',()=>{closeModal('modal-trip-detail');setTimeout(()=>openAddTrip(currentTripId),320);});
+function openTripDetail(tripId){
+  currentTripId=tripId;const t=DB.trips.find(x=>x.id===tripId);if(!t)return;
+  const tripVisits=DB.visits.filter(v=>v.tripId===tripId).sort((a,b)=>a.date.localeCompare(b.date));
+  const placeIds=[...new Set(tripVisits.map(v=>v.placeId))];
+  const duration=t.startDate&&t.endDate?Math.round((new Date(t.endDate)-new Date(t.startDate))/86400000)+1:null;
+  const hr=tripVisits.map(v=>v.hunterRating).filter(r=>r>0),br=tripVisits.map(v=>v.brandonRating).filter(r=>r>0);
+  const hAvg=hr.length?(hr.reduce((a,b)=>a+b,0)/hr.length):0,bAvg=br.length?(br.reduce((a,b)=>a+b,0)/br.length):0;
+  document.getElementById('trip-detail-title').textContent=t.name;
+  const body=document.getElementById('trip-detail-body');
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      ${duration?`<div class="stat-card"><div class="stat-label">Duration</div><div class="stat-value" style="font-size:24px;">${duration}<span style="font-size:16px;">d</span></div></div>`:''}
+      <div class="stat-card"><div class="stat-label">Places</div><div class="stat-value" style="font-size:24px;">${placeIds.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Visits</div><div class="stat-value" style="font-size:24px;">${tripVisits.length}</div></div>
+      ${hAvg?`<div class="stat-card hunter-card"><div class="stat-label">Hunter Avg</div><div class="stat-value" style="font-size:24px;">${hAvg.toFixed(1)}</div></div>`:''}
+      ${bAvg?`<div class="stat-card brandon-card"><div class="stat-label">Brandon Avg</div><div class="stat-value" style="font-size:24px;">${bAvg.toFixed(1)}</div></div>`:''}
+    </div>
+    ${t.notes?`<div><div class="section-title">Notes</div><p style="font-size:14px;line-height:1.6;color:var(--text-muted);">${escHtml(t.notes)}</p></div>`:''}
+    <div><div class="section-title">Timeline</div><div class="timeline">${tripVisits.map((v,i)=>{const p=DB.places.find(x=>x.id===v.placeId);const isLast=i===tripVisits.length-1;return `<div class="timeline-item"><div class="timeline-dot-wrap"><div class="timeline-dot"></div>${!isLast?'<div class="timeline-line"></div>':''}</div><div class="timeline-content"><div class="timeline-date">${formatDate(v.date)}</div><div class="timeline-name" data-visit="${v.id}">${escHtml(p?.name||'Unknown')}</div><div class="timeline-meta">H:${v.hunterRating||'\u2014'} B:${v.brandonRating||'\u2014'}</div></div></div>`;}).join('')}</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" id="trip-del-btn">Delete Trip</button>
+    </div>`;
+  body.querySelectorAll('[data-visit]').forEach(el=>el.addEventListener('click',()=>{const v=DB.visits.find(x=>x.id===el.dataset.visit);if(v){closeModal('modal-trip-detail');currentPlaceId=v.placeId;setTimeout(()=>openVisitDetail(v.id),320);}}));
+  document.getElementById('trip-del-btn').addEventListener('click',()=>{if(!confirm('Delete trip? Visits will be unlinked.'))return;deleteTrip(tripId);closeModal('modal-trip-detail');renderFilterChips();renderList();toast('Trip deleted');});
+  openModal('modal-trip-detail');
+}
+
+// ═══════════════════════════════════════════
+//  WISHLIST
+// ═══════════════════════════════════════════
+let wishDesireCtrl=null;
+document.getElementById('add-wish-btn').addEventListener('click',()=>openAddWish());
+document.getElementById('add-wish-close').addEventListener('click',()=>closeModal('modal-add-wish'));
+document.getElementById('wish-detail-back').addEventListener('click',()=>closeModal('modal-wish-detail'));
+
+function openAddWish(wishId=null,prefill=null){
+  editingWishId=wishId;
+  document.getElementById('add-wish-title').textContent=wishId?'Edit Wishlist Item':'Add to Wishlist';
+  if(wishId){
+    const w=DB.wishlist.find(x=>x.id===wishId);
+    document.getElementById('wish-name').value=w.name||'';document.getElementById('wish-city').value=w.city||'';
+    document.getElementById('wish-country').value=w.country||'';document.getElementById('wish-lat').value=w.lat||'';
+    document.getElementById('wish-lng').value=w.lng||'';document.getElementById('wish-category').value=w.category||'';
+    document.getElementById('wish-priority').value=w.priority||'medium';document.getElementById('wish-notes').value=w.notes||'';
+    setTags(wishTagsCfg,w.subTags||[]);
+    wishDesireCtrl=renderStarInput('wish-desire-input',5);wishDesireCtrl.setValue(w.desireRating||0);
+  } else {
+    ['wish-name','wish-city','wish-country','wish-lat','wish-lng','wish-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('wish-category').value='';document.getElementById('wish-priority').value='medium';
+    setTags(wishTagsCfg,[]);wishDesireCtrl=renderStarInput('wish-desire-input',5);
+    if(prefill){
+      if(prefill.name)document.getElementById('wish-name').value=prefill.name;
+      if(prefill.city)document.getElementById('wish-city').value=prefill.city;
+      if(prefill.country)document.getElementById('wish-country').value=prefill.country;
+      if(prefill.lat)document.getElementById('wish-lat').value=prefill.lat;
+      if(prefill.lng)document.getElementById('wish-lng').value=prefill.lng;
+      if(prefill.category)document.getElementById('wish-category').value=prefill.category;
+      setTags(wishTagsCfg,prefill.subTags||[]);
+    }
+  }
+  openModal('modal-add-wish');
+}
+document.getElementById('save-wish-btn').addEventListener('click',()=>{
+  const name=document.getElementById('wish-name').value.trim();if(!name){toast('Name required');return;}
+  const w=editingWishId?{...DB.wishlist.find(x=>x.id===editingWishId)}:{id:uid(),dateAdded:new Date().toISOString()};
+  w.name=name;w.city=document.getElementById('wish-city').value.trim();w.country=document.getElementById('wish-country').value.trim();
+  w.lat=parseFloat(document.getElementById('wish-lat').value)||null;w.lng=parseFloat(document.getElementById('wish-lng').value)||null;
+  w.category=document.getElementById('wish-category').value;w.priority=document.getElementById('wish-priority').value;
+  w.notes=document.getElementById('wish-notes').value.trim();w.subTags=[...wishTagsCfg.tags];w.desireRating=wishDesireCtrl?wishDesireCtrl.getValue():0;
+  saveWish(w);closeModal('modal-add-wish');renderWishlist();toast(editingWishId?'Updated':'Added to wishlist!');
+});
+
+function renderWishlist(){
+  const wishlist=DB.wishlist;document.getElementById('wish-count').textContent=`${wishlist.length} item${wishlist.length!==1?'s':''}`;
+  const cats=[...new Set(wishlist.map(w=>w.category).filter(Boolean))];
+  const fc=document.getElementById('wish-filter-chips');fc.innerHTML='';
+  const allBtn=document.createElement('button');allBtn.className='chip wish-chip'+(!wishFilterCat?' active':'');allBtn.textContent='All';
+  allBtn.addEventListener('click',()=>{wishFilterCat=null;renderWishlist();});fc.appendChild(allBtn);
+  cats.forEach(cat=>{const c=document.createElement('button');c.className='chip wish-chip'+(wishFilterCat===cat?' active':'');c.textContent=cat;c.addEventListener('click',()=>{wishFilterCat=cat;renderWishlist();});fc.appendChild(c);});
+  let items=wishFilterCat?wishlist.filter(w=>w.category===wishFilterCat):[...wishlist];
+  items.sort((a,b)=>{const po={high:0,medium:1,low:2};return(po[a.priority]||1)-(po[b.priority]||1)||(b.desireRating||0)-(a.desireRating||0);});
+  const list=document.getElementById('wish-list');list.innerHTML='';
+  if(!items.length){list.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><h3>Wishlist empty</h3><p>Add places you want to visit.</p></div>`;return;}
+  items.forEach(w=>{
+    const card=document.createElement('div');card.className='wish-card';
+    card.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div class="wish-name">${escHtml(w.name)}</div><div class="wish-loc">${[w.city,w.country].filter(Boolean).join(', ')}</div></div>
+        ${w.category?`<span class="wish-cat">${escHtml(w.category)}</span>`:''}
+      </div>
+      <div class="wish-meta">
+        <span class="wish-priority ${w.priority||'medium'}">${w.priority==='high'?'\u25CF High':w.priority==='low'?'\u25CB Low':'\u25CE Med'}</span>
+        ${w.desireRating?desireStars(w.desireRating):''}
+        ${w.subTags?.length?w.subTags.slice(0,2).map(t=>`<span class="tag">${escHtml(t)}</span>`).join(''):''}
+      </div>`;
+    card.addEventListener('click',()=>openWishDetail(w.id));
+    list.appendChild(card);
+  });
+}
+
+function openWishDetail(wishId){
+  currentWishId=wishId;const w=DB.wishlist.find(x=>x.id===wishId);if(!w)return;
+  document.getElementById('wish-detail-title').textContent=w.name;
+  const body=document.getElementById('wish-detail-body');
+  body.innerHTML=`
+    <div><div class="section-title">Location</div><p style="font-size:14px;color:var(--text-muted);">${[w.city,w.country].filter(Boolean).join(', ')||'\u2014'}</p></div>
+    ${w.category?`<div><div class="section-title">Category</div><span class="wish-cat">${escHtml(w.category)}</span></div>`:''}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div class="stat-card" style="flex:1;min-width:0;"><div class="stat-label">Priority</div><div style="font-size:18px;margin-top:6px;">${w.priority==='high'?'\u25CF High':w.priority==='low'?'\u25CB Low':'\u25CE Medium'}</div></div>
+      <div class="stat-card" style="flex:1;min-width:0;"><div class="stat-label">Desire</div><div style="margin-top:6px;">${desireStars(w.desireRating)}</div></div>
+    </div>
+    ${w.notes?`<div><div class="section-title">Notes</div><p style="font-size:14px;line-height:1.6;color:var(--text-muted);">${escHtml(w.notes)}</p></div>`:''}
+    ${w.subTags?.length?`<div><div class="section-title">Tags</div><div class="tags-row">${w.subTags.map(t=>`<span class="tag">${escHtml(t)}</span>`).join('')}</div></div>`:''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" id="wish-convert-btn">\u2192 Convert to Place</button>
+      <button class="btn btn-secondary btn-sm" id="wish-edit-detail-btn">Edit</button>
+      <button class="btn btn-danger btn-sm" id="wish-delete-detail-btn">Remove</button>
+    </div>`;
+  document.getElementById('wish-convert-btn').addEventListener('click',()=>{
+    closeModal('modal-wish-detail');
+    setTimeout(()=>{
+      openAddPlace();
+      setTimeout(()=>{
+        if(w.name)document.getElementById('place-name').value=w.name;
+        if(w.city)document.getElementById('place-city').value=w.city;
+        if(w.country)document.getElementById('place-country').value=w.country;
+        if(w.lat)document.getElementById('place-lat').value=w.lat;
+        if(w.lng)document.getElementById('place-lng').value=w.lng;
+        if(w.category)document.getElementById('place-category').value=w.category;
+        setTags(subTags,w.subTags||[]);
+      },100);
+    },320);
+  });
+  document.getElementById('wish-edit-detail-btn').addEventListener('click',()=>{closeModal('modal-wish-detail');setTimeout(()=>openAddWish(wishId),320);});
+  document.getElementById('wish-delete-detail-btn').addEventListener('click',()=>{if(!confirm('Remove from wishlist?'))return;deleteWish(wishId);closeModal('modal-wish-detail');renderWishlist();toast('Removed');});
+  openModal('modal-wish-detail');
+}
+
+// ═══════════════════════════════════════════
+//  CALENDAR
+// ═══════════════════════════════════════════
+const _n=new Date();calYear=_n.getFullYear();calMonth=_n.getMonth();
+document.getElementById('cal-prev').addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();});
+document.getElementById('cal-next').addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();});
+
+function renderCalendar(){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-label').textContent=`${months[calMonth]} ${calYear}`;
+  const visitDates=new Set(DB.visits.map(v=>v.date));
+  const grid=document.getElementById('cal-grid');grid.innerHTML='';
+  ['SU','MO','TU','WE','TH','FR','SA'].forEach(d=>{const el=document.createElement('div');el.className='cal-day-label';el.textContent=d;grid.appendChild(el);});
+  const firstDay=new Date(calYear,calMonth,1).getDay(),dim=new Date(calYear,calMonth+1,0).getDate(),dip=new Date(calYear,calMonth,0).getDate();
+  const todayStr=new Date().toISOString().slice(0,10);
+  for(let i=firstDay-1;i>=0;i--){const d=dip-i,m=calMonth===0?12:calMonth,ds=`${calMonth===0?calYear-1:calYear}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;addCalDay(grid,d,ds,'other-month',visitDates,todayStr);}
+  for(let d=1;d<=dim;d++){const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;addCalDay(grid,d,ds,'',visitDates,todayStr);}
+}
+function addCalDay(grid,d,dateStr,extra,visitDates,todayStr){
+  const el=document.createElement('div');
+  el.className=`cal-day ${extra} ${dateStr===todayStr?'today':''} ${visitDates.has(dateStr)?'has-visit':''} ${calSelectedDate===dateStr?'selected':''}`;
+  el.textContent=d;
+  el.addEventListener('click',()=>{calSelectedDate=dateStr;renderCalendar();renderCalVisits(dateStr);});
+  grid.appendChild(el);
+}
+function renderCalVisits(dateStr){
+  const visits=DB.visits.filter(v=>v.date===dateStr);const container=document.getElementById('cal-visits');container.innerHTML='';
+  if(!visits.length){container.innerHTML=`<p style="font-size:13px;color:var(--text-light);text-align:center;padding:12px;">No visits on ${formatDate(dateStr)}</p>`;return;}
+  const title=document.createElement('div');title.style.cssText='font-size:11px;font-weight:700;letter-spacing:0.06em;color:var(--text-light);text-transform:uppercase;margin-bottom:8px;';title.textContent=formatDate(dateStr);container.appendChild(title);
+  visits.forEach(v=>{const p=DB.places.find(x=>x.id===v.placeId);const card=document.createElement('div');card.className='cal-visit-card';card.innerHTML=`<div class="cal-visit-place">${escHtml(p?.name||'Unknown')}</div><div class="cal-visit-meta">H:${v.hunterRating||'\u2014'} B:${v.brandonRating||'\u2014'}${v.visitedWith?.length?' \u00B7 '+v.visitedWith.join(', '):''}</div>`;card.addEventListener('click',()=>{currentPlaceId=v.placeId;openVisitDetail(v.id);});container.appendChild(card);});
+}
+
+// ═══════════════════════════════════════════
+//  MAP
+// ═══════════════════════════════════════════
+document.querySelectorAll('.map-mode-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{document.querySelectorAll('.map-mode-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');mapMode=btn.dataset.mode;updateMap();});
+});
+document.getElementById('map-wish-toggle').addEventListener('click',()=>{
+  showWishOnMap=!showWishOnMap;
+  document.getElementById('map-wish-toggle').classList.toggle('active',showWishOnMap);
+  updateMap();
+});
+
+function initMap(){
+  const mapEl=document.getElementById('leaflet-map');
+  const viewEl=document.getElementById('view-map');
+  const headerH=viewEl.querySelector('.page-header').offsetHeight||80;
+  mapEl.style.height=`${window.innerHeight-headerH}px`;
+  if(!mapInitialized){
+    leafletMap=L.map('leaflet-map',{zoomControl:false}).setView([25,10],2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; CartoDB',maxZoom:19}).addTo(leafletMap);
+    L.control.zoom({position:'topright'}).addTo(leafletMap);
+    mapLayer=L.layerGroup().addTo(leafletMap);
+    mapInitialized=true;
+    setTimeout(()=>{leafletMap.invalidateSize();updateMap();},200);
+  } else {
+    setTimeout(()=>{leafletMap.invalidateSize();updateMap();},200);
+  }
+}
+
+function updateMap(){
+  if(!mapInitialized||!leafletMap) return;
+  mapLayer.clearLayers();
+  if(mapWishLayer){leafletMap.removeLayer(mapWishLayer);mapWishLayer=null;}
+  const places=DB.places.filter(p=>p.lat&&p.lng);
+  const visits=DB.visits;
+
+  if(mapMode==='markers'){
+    places.forEach(p=>{
+      const visits_p=visits.filter(v=>v.placeId===p.id);
+      const tripIds=[...new Set(visits_p.filter(v=>v.tripId).map(v=>v.tripId))];
+      const tripBadgesHtml=tripIds.map(tid=>{const t=DB.trips.find(x=>x.id===tid);return t?`<span class="map-popup-badge" style="background:var(--trip-light);color:var(--trip-color);margin-right:4px;">${escHtml(t.name)}</span>`:''}).join('');
+      const dotColor=p.avgRating>=4.5?'#6e8175':p.avgRating>=3?'#97ac9f':'#859eac';
+      const icon=L.divIcon({html:`<div style="width:14px;height:14px;border-radius:50%;background:${dotColor};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(28,36,32,0.22);"></div>`,iconSize:[14,14],iconAnchor:[7,7],className:''});
+      L.marker([p.lat,p.lng],{icon}).bindPopup(`<div style="min-width:160px;"><div class="map-popup-name">${escHtml(p.name)}</div><div class="map-popup-loc">${[p.city,p.country].filter(Boolean).join(', ')}</div><div class="map-popup-ratings" style="display:flex;gap:5px;margin-bottom:6px;">${p.hunterAvg?`<span class="map-popup-badge" style="background:var(--hunter);color:var(--hunter-dark);">H ${p.hunterAvg.toFixed(1)}</span>`:''} ${p.brandonAvg?`<span class="map-popup-badge" style="background:var(--brandon);color:var(--brandon-dark);">B ${p.brandonAvg.toFixed(1)}</span>`:''}</div>${tripBadgesHtml?`<div style="margin-bottom:4px;">${tripBadgesHtml}</div>`:''}<div style="font-size:10px;color:var(--text-light);">${p.totalVisits||0} visit${p.totalVisits!==1?'s':''}</div></div>`,{className:'',maxWidth:240}).addTo(mapLayer);
+    });
+  } else if(mapMode==='heatmap'){
+    // Smooth gradient heatmap using overlapping radial circles
+    const maxV=Math.max(1,...places.map(p=>p.totalVisits||1));
+    places.forEach(p=>{
+      const w=(p.totalVisits||1)/maxV;
+      // outer glow
+      L.circleMarker([p.lat,p.lng],{radius:20+w*30,fillColor:'#6e8175',fillOpacity:0.04*w,color:'transparent'}).addTo(mapLayer);
+      L.circleMarker([p.lat,p.lng],{radius:12+w*18,fillColor:'#6e8175',fillOpacity:0.08+w*0.08,color:'transparent'}).addTo(mapLayer);
+      L.circleMarker([p.lat,p.lng],{radius:6+w*10,fillColor:'#6e8175',fillOpacity:0.2+w*0.25,color:'transparent'}).addTo(mapLayer);
+      L.circleMarker([p.lat,p.lng],{radius:3+w*4,fillColor:'#3d5a48',fillOpacity:0.6+w*0.35,color:'transparent'}).bindPopup(`<div class="map-popup-name">${escHtml(p.name)}</div><div style="font-size:11px;color:var(--text-muted);">${p.totalVisits||0} visits &middot; avg ${p.avgRating?p.avgRating.toFixed(1):'\u2014'}</div>`).addTo(mapLayer);
+    });
+  } else if(mapMode==='choropleth'){
+    // Group by country and US state
+    const regionData={};
+    places.forEach(p=>{
+      const key=p.country==='United States'&&p.state?`US:${p.state}`:p.country;
+      if(!key) return;
+      if(!regionData[key]) regionData[key]={count:0,visits:0,places:[],lat:0,lng:0,n:0};
+      regionData[key].count++;
+      regionData[key].visits+=(p.totalVisits||0);
+      regionData[key].places.push(p);
+      regionData[key].lat+=p.lat; regionData[key].lng+=p.lng; regionData[key].n++;
+    });
+    const maxVisits=Math.max(1,...Object.values(regionData).map(d=>d.visits));
+    Object.entries(regionData).forEach(([key,d])=>{
+      const avgLat=d.lat/d.n, avgLng=d.lng/d.n;
+      const intensity=d.visits/maxVisits;
+      const displayName=key.startsWith('US:')?key.slice(3):key;
+      // Large shading circle
+      L.circle([avgLat,avgLng],{radius:300000*Math.max(0.3,intensity),fillColor:'#6e8175',fillOpacity:0.08+intensity*0.22,color:'#6e8175',weight:0}).addTo(mapLayer);
+      // Label
+      const labelIcon=L.divIcon({html:`<div style="background:rgba(110,129,117,${0.7+intensity*0.25});color:#fff;padding:4px 8px;border-radius:8px;font-family:var(--sys);font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.3);">${escHtml(displayName)}<br><span style="font-weight:400;font-size:10px;">${d.visits} visit${d.visits!==1?'s':''}</span></div>`,className:'',iconAnchor:[0,0]});
+      L.marker([avgLat,avgLng],{icon:labelIcon}).addTo(mapLayer);
+    });
+  }
+
+  if(showWishOnMap){
+    const wLayer=L.layerGroup();
+    DB.wishlist.filter(w=>w.lat&&w.lng).forEach(w=>{
+      const icon=L.divIcon({html:`<div style="width:12px;height:12px;border-radius:50%;background:#c9a5a2;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.2);"></div>`,iconSize:[12,12],iconAnchor:[6,6],className:''});
+      L.marker([w.lat,w.lng],{icon}).bindPopup(`<div class="map-popup-name" style="color:var(--wish-color);">\u2665 ${escHtml(w.name)}</div><div class="map-popup-loc">${[w.city,w.country].filter(Boolean).join(', ')}</div>`).addTo(wLayer);
+    });
+    mapWishLayer=wLayer;wLayer.addTo(leafletMap);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════
+function openModal(id){document.getElementById(id).classList.add('open');document.body.classList.add('modal-open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');if(!document.querySelector('.modal-overlay.open'))document.body.classList.remove('modal-open');}
+['modal-add-place','modal-add-visit','modal-add-trip','modal-add-wish','modal-add-choice'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target===document.getElementById(id))closeModal(id);});
+});
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+function formatDate(str){if(!str)return'\u2014';const[y,m,d]=str.split('-');const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${months[parseInt(m)-1]} ${parseInt(d)}, ${y}`;}
+function formatTime(iso){if(!iso)return'';const d=new Date(iso);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500);}
+
+// ═══════════════════════════════════════════
+//  SEED DATA
+// ═══════════════════════════════════════════
+function seedDemoData(){
+  if(DB.places.length>0) return;
+  const p1={id:uid(),name:'The Inn at Little Washington',city:'Washington',state:'Virginia',country:'United States',lat:38.7118,lng:-78.1618,altitude:520,mapsUrl:'',category:'Restaurant',subTags:['Fine Dining','Tasting Menu'],defaultVisitedWith:['Just Us'],totalVisits:0,hunterAvg:0,brandonAvg:0,avgRating:0,firstVisited:null,photos:[]};
+  const p2={id:uid(),name:'Amalfi Coast',city:'Ravello',state:'Campania',country:'Italy',lat:40.6476,lng:14.6147,altitude:180,mapsUrl:'',category:'City / Neighborhood',subTags:['Scenic','UNESCO'],defaultVisitedWith:['Just Us','Mom'],totalVisits:0,hunterAvg:0,brandonAvg:0,avgRating:0,firstVisited:null,photos:[]};
+  const p3={id:uid(),name:'Eleven Madison Park',city:'New York',state:'New York',country:'United States',lat:40.7416,lng:-73.9867,altitude:10,mapsUrl:'',category:'Restaurant',subTags:['Fine Dining','Plant-Based'],defaultVisitedWith:['Just Us'],totalVisits:0,hunterAvg:0,brandonAvg:0,avgRating:0,firstVisited:null,photos:[]};
+  savePlace(p1);savePlace(p2);savePlace(p3);
+  const t1={id:uid(),name:'Italy 2023',startDate:'2023-09-18',endDate:'2023-09-28',primaryCity:'Rome',primaryCountry:'Italy',notes:'Ten magical days.',tags:['Europe','Anniversary']};
+  saveTrip(t1);
+  const v1={id:uid(),placeId:p1.id,date:'2024-06-14',hunterRating:4.5,brandonRating:5,visitedWith:['Just Us'],notes:[{id:uid(),author:'Hunter',text:"Absolutely stunning tasting menu. Patrick O'Connell is a genius.",ts:'2024-06-14T21:00:00Z'},{id:uid(),author:'Brandon',text:'The cheese trolley. I still dream about it.',ts:'2024-06-14T21:05:00Z'}],tripId:null,photos:[]};
+  const v2={id:uid(),placeId:p2.id,date:'2023-09-22',hunterRating:5,brandonRating:4.5,visitedWith:['Just Us','Mom'],notes:[{id:uid(),author:'Other',text:'Arrived by ferry from Salerno. Golden hour light was magical.',ts:'2023-09-22T18:00:00Z'}],tripId:t1.id,photos:[]};
+  const v3={id:uid(),placeId:p3.id,date:'2024-09-01',hunterRating:4,brandonRating:4.5,visitedWith:['Just Us'],notes:[],tripId:null,photos:[]};
+  saveVisit(v1);saveVisit(v2);saveVisit(v3);
+  const w1={id:uid(),name:'Noma',city:'Copenhagen',country:'Denmark',lat:55.6895,lng:12.5989,category:'Restaurant',subTags:['Fermentation','Nordic'],priority:'high',desireRating:5,notes:'Must go.',dateAdded:new Date().toISOString()};
+  const w2={id:uid(),name:'Kyoto in Cherry Blossom',city:'Kyoto',country:'Japan',lat:35.0116,lng:135.7681,category:'City / Neighborhood',subTags:['Culture','Seasonal'],priority:'high',desireRating:4.5,notes:'Spring 2025.',dateAdded:new Date().toISOString()};
+  saveWish(w1);saveWish(w2);
+}
+
+// ═══════════════════════════════════════════
+//  PHASE III — METRICS CACHE (precomputed once per data change)
+//  Cached in memory; recomputed when DB changes.
+// ═══════════════════════════════════════════
+
+let _metricsCache = null; // { data, placesHash }
+
+/** Lightweight hash to detect data changes without deep comparison */
+function dataHash() {
+  const p = DB.places, v = DB.visits, w = DB.wishlist;
+  return `${p.length}|${v.length}|${w.length}|${(p[0]?.id||'')}|${(v[0]?.id||'')}`;
+}
+
+/**
+ * Precompute all metrics used by Discover and Stats.
+ * Called lazily; results cached until data changes.
+ */
+function getMetrics() {
+  const h = dataHash();
+  if (_metricsCache && _metricsCache.hash === h) return _metricsCache.data;
+
+  const places   = DB.places;
+  const visits   = DB.visits;
+  const wishlist = DB.wishlist;
+  const trips    = DB.trips;
+  const now      = Date.now();
+  const MS_DAY   = 86400000;
+
+  // — Per-category scores —
+  const catScores   = {}; // { cat: { h:[], b:[], combined:[] } }
+  visits.forEach(v => {
+    const p = places.find(x => x.id === v.placeId); if (!p || !p.category) return;
+    if (!catScores[p.category]) catScores[p.category] = { h:[], b:[], combined:[] };
+    if (v.hunterRating  > 0) catScores[p.category].h.push(v.hunterRating);
+    if (v.brandonRating > 0) catScores[p.category].b.push(v.brandonRating);
+    if (v.hunterRating > 0 || v.brandonRating > 0) {
+      const both = [v.hunterRating, v.brandonRating].filter(r => r > 0);
+      catScores[p.category].combined.push(...both);
+    }
+  });
+  const catAvg = {}; // { cat: { hunter, brandon, combined, variance } }
+  Object.entries(catScores).forEach(([cat, s]) => {
+    const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+    const variance = arr => {
+      if (arr.length < 2) return 0;
+      const m = avg(arr);
+      return arr.reduce((s,v) => s + (v-m)**2, 0) / arr.length;
+    };
+    catAvg[cat] = {
+      hunter:   avg(s.h),
+      brandon:  avg(s.b),
+      combined: avg(s.combined),
+      variance: variance(s.combined)
+    };
+  });
+
+  // — Top 5 loved categories (by combined avg, min 1 rating) —
+  const top5Cats = Object.entries(catAvg)
+    .filter(([,v]) => v.combined >= 3.5)
+    .sort((a,b) => b[1].combined - a[1].combined)
+    .slice(0, 5)
+    .map(([cat]) => cat);
+
+  // — High-rated sub-tags —
+  const tagFreq = {};
+  visits.forEach(v => {
+    const p = places.find(x => x.id === v.placeId);
+    if (!p || v.hunterRating < 4 && v.brandonRating < 4) return;
+    (p.subTags || []).forEach(t => { tagFreq[t] = (tagFreq[t]||0) + 1; });
+  });
+  const topTags = Object.entries(tagFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([t])=>t);
+
+  // — Country stats —
+  const countryVisits  = {}; // { country: visit count }
+  const countryRatings = {}; // { country: [ratings] }
+  const countryLastVisit = {}; // { country: ms timestamp }
+  visits.forEach(v => {
+    const p = places.find(x => x.id === v.placeId); if (!p || !p.country) return;
+    countryVisits[p.country] = (countryVisits[p.country]||0) + 1;
+    if (!countryRatings[p.country]) countryRatings[p.country] = [];
+    if (v.hunterRating > 0)  countryRatings[p.country].push(v.hunterRating);
+    if (v.brandonRating > 0) countryRatings[p.country].push(v.brandonRating);
+    const ts = new Date(v.date).getTime();
+    if (!countryLastVisit[p.country] || ts > countryLastVisit[p.country])
+      countryLastVisit[p.country] = ts;
+  });
+  const countryAvgRating = {};
+  Object.entries(countryRatings).forEach(([c, arr]) => {
+    countryAvgRating[c] = arr.reduce((a,b)=>a+b,0) / arr.length;
+  });
+  const mostVisitedCountries = Object.entries(countryVisits)
+    .sort((a,b)=>b[1]-a[1]).map(([c])=>c);
+
+  // — Most active travel month —
+  const monthCounts = Array(12).fill(0);
+  visits.forEach(v => { if (v.date) monthCounts[parseInt(v.date.slice(5,7))-1]++; });
+  const mostActiveMonth = monthCounts.indexOf(Math.max(...monthCounts));
+
+  // — Month × country performance: { "country:month": [ratings] } —
+  const seasonPerf = {};
+  visits.forEach(v => {
+    const p = places.find(x => x.id === v.placeId); if (!p || !p.country || !v.date) return;
+    const mo = parseInt(v.date.slice(5,7));
+    const key = `${p.country}:${mo}`;
+    if (!seasonPerf[key]) seasonPerf[key] = [];
+    if (v.hunterRating  > 0) seasonPerf[key].push(v.hunterRating);
+    if (v.brandonRating > 0) seasonPerf[key].push(v.brandonRating);
+  });
+  const seasonAvg = {};
+  Object.entries(seasonPerf).forEach(([k, arr]) => {
+    seasonAvg[k] = arr.reduce((a,b)=>a+b,0)/arr.length;
+  });
+
+  // — Average altitude of highly rated places —
+  const highRatedAlts = places.filter(p => p.altitude && p.avgRating >= 4.2).map(p => p.altitude);
+  const avgHighAlt = highRatedAlts.length ? highRatedAlts.reduce((a,b)=>a+b,0)/highRatedAlts.length : 0;
+
+  // — Days since last visit per country —
+  const daysSinceLast = {};
+  Object.entries(countryLastVisit).forEach(([c, ts]) => {
+    daysSinceLast[c] = Math.floor((now - ts) / MS_DAY);
+  });
+
+  const data = {
+    catAvg, top5Cats, topTags,
+    countryVisits, countryAvgRating, mostVisitedCountries,
+    countryLastVisit, daysSinceLast, mostActiveMonth,
+    seasonAvg, avgHighAlt, monthCounts,
+    // also cache full stats for Stats page
+    trips, places, visits, wishlist
+  };
+  _metricsCache = { hash: h, data };
+  return data;
+}
+
+/** Call after any DB write to invalidate cache */
+function invalidateMetrics() { _metricsCache = null; }
+
+// Patch save functions to invalidate cache
+function savePlace(p)      { _origSavePlace(p);   invalidateMetrics(); }
+function saveVisit(v)      { _origSaveVisit(v);   invalidateMetrics(); }
+function saveTrip(t)       { _origSaveTrip(t);    invalidateMetrics(); }
+function saveWish(w)       { _origSaveWish(w);    invalidateMetrics(); }
+function deletePlace(id)   { _origDeletePlace(id);invalidateMetrics(); }
+function deleteVisit(id)   { _origDeleteVisit(id);invalidateMetrics(); }
+function deleteTrip(id)    { _origDeleteTrip(id); invalidateMetrics(); }
+function deleteWish(id)    { _origDeleteWish(id); invalidateMetrics(); }
+
+
+// ═══════════════════════════════════════════
+//  PHASE III — DISCOVER ENGINE
+// ═══════════════════════════════════════════
+
+// Current discover UI state
+let discMood = 'mixed', discEnergy = 'medium';
+
+// Wire mood buttons
+document.querySelectorAll('.mood-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    discMood = btn.dataset.mood;
+  });
+});
+// Wire energy buttons
+document.querySelectorAll('.energy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.energy-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    discEnergy = btn.dataset.energy;
+  });
+});
+
+document.getElementById('disc-generate-btn').addEventListener('click', runDiscover);
+
+/**
+ * Build candidate destinations from wishlist items grouped by country.
+ * Each candidate = { country, city, items:[], category counts }
+ */
+function buildCandidates() {
+  const wishlist = DB.wishlist;
+  const places   = DB.places;
+  if (!wishlist.length) return [];
+
+  // Group by country (and city if available)
+  const grouped = {};
+  wishlist.forEach(w => {
+    const key = w.country || 'Unknown';
+    if (!grouped[key]) grouped[key] = { country: key, cities: {}, items: [] };
+    grouped[key].items.push(w);
+    if (w.city) grouped[key].cities[w.city] = (grouped[key].cities[w.city]||0) + 1;
+  });
+
+  return Object.values(grouped).map(g => {
+    const primaryCity = Object.entries(g.cities).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+    const cats = {};
+    g.items.forEach(w => { if (w.category) cats[w.category] = (cats[w.category]||0)+1; });
+    // Check if visited before
+    const countryPlaces = places.filter(p => p.country === g.country);
+    const visited = countryPlaces.length > 0;
+    const lastVisitDates = DB.visits
+      .filter(v => countryPlaces.some(p => p.id === v.placeId))
+      .map(v => v.date).sort().reverse();
+    const lastVisit = lastVisitDates[0] || null;
+    const avgRating = countryPlaces.filter(p=>p.avgRating>0).reduce((s,p,_,a)=>s+p.avgRating/a.length,0)||0;
+    return { ...g, primaryCity, cats, visited, lastVisit, avgRating };
+  });
+}
+
+/**
+ * COMPONENT 1 — Wishlist Density & Desire Score (max 30)
+ * WishlistScore = (ItemCount×5) + (AvgDesire×4) + (PriorityWeight×3), capped at 30
+ */
+function scoreWishlistDensity(candidate) {
+  const items = candidate.items;
+  const itemCount = Math.min(items.length, 4); // diminishing returns after 4
+  const avgDesire = items.reduce((s,w)=>(s+(w.desireRating||3)),0)/items.length;
+  const priorityWeight = items.reduce((s,w)=>{
+    return s + (w.priority==='high' ? 3 : w.priority==='medium' ? 2 : 1);
+  },0) / items.length;
+  return Math.min(30, itemCount*5 + avgDesire*4 + priorityWeight*3);
+}
+
+/**
+ * COMPONENT 2 — Category Alignment (max 25)
+ * Count wishlist categories matching Top 5 loved categories, weighted by combined score
+ */
+function scoreCategoryAlignment(candidate, metrics) {
+  const { top5Cats, catAvg } = metrics;
+  if (!top5Cats.length) return 12; // neutral when no history
+  const candCats = Object.keys(candidate.cats);
+  let score = 0;
+  candCats.forEach(cat => {
+    if (top5Cats.includes(cat)) {
+      const ca = catAvg[cat];
+      score += ca ? ca.combined * 1.2 : 3;
+    }
+  });
+  return Math.min(25, score);
+}
+
+/**
+ * COMPONENT 3 — Novelty vs Revisit Balance (max 15)
+ */
+function scoreNovelty(candidate, metrics) {
+  const { daysSinceLast, countryAvgRating } = metrics;
+  const country = candidate.country;
+  if (!candidate.visited) return 15; // New country: max novelty
+  const days = daysSinceLast[country] || 0;
+  const avg  = countryAvgRating[country] || 0;
+  // New city in visited country
+  const knownCities = new Set(DB.places.filter(p=>p.country===country).map(p=>p.city).filter(Boolean));
+  const newCity = candidate.primaryCity && !knownCities.has(candidate.primaryCity);
+  if (newCity) return 10;
+  // Loved revisit (highly rated + >1 year gap)
+  if (avg >= 4.2 && days > 365) return 12;
+  if (avg >= 4.2 && days > 180) return 8;
+  return 5; // Recent or low-rated revisit
+}
+
+/**
+ * COMPONENT 4 — Agreement & Stability (max 15)
+ * Boost destinations whose categories have low variance and dual high ratings
+ */
+function scoreAgreement(candidate, metrics) {
+  const { catAvg } = metrics;
+  const candCats = Object.keys(candidate.cats);
+  let matches = 0;
+  candCats.forEach(cat => {
+    const ca = catAvg[cat];
+    if (!ca) return;
+    if (ca.variance < 1.0 && ca.hunter >= 4.0 && ca.brandon >= 4.0) matches += 2;
+    else if (ca.hunter >= 4.0 || ca.brandon >= 4.0) matches += 1;
+  });
+  return Math.min(15, matches * 3.5);
+}
+
+/**
+ * COMPONENT 5 — Seasonal & Pattern Match (max 15)
+ */
+function scoreSeasonal(candidate, metrics, selectedMonth) {
+  if (!selectedMonth) return 7; // no month selected: partial score
+  const { seasonAvg } = metrics;
+  const mo = parseInt(selectedMonth);
+  const key = `${candidate.country}:${mo}`;
+  const avg = seasonAvg[key];
+  if (avg === undefined) return 5;    // no data
+  if (avg >= 4.2) return 15;          // high-performing season
+  if (avg >= 3.5) return 8;           // partial match
+  return 3;                            // poor season historically
+}
+
+/**
+ * Mood modifier: adjust score based on mood + category match
+ */
+function moodModifier(candidate, mood) {
+  const moodCatMap = {
+    'food-focused': ['Restaurant','Bar / Cocktail','Brewery / Winery','Market / Shop'],
+    'culture':      ['Museum / Culture','City / Neighborhood','Experience'],
+    'nature':       ['Hike / Nature','Beach','City / Neighborhood'],
+    'relaxing':     ['Beach','Hotel / Lodging','City / Neighborhood'],
+    'romantic':     ['Restaurant','Hotel / Lodging','Experience','Beach'],
+    'energetic':    ['Hike / Nature','Experience','Market / Shop'],
+    'mixed':        [] // no modifier
+  };
+  const moodCats = moodCatMap[mood] || [];
+  if (!moodCats.length) return 0;
+  const overlap = Object.keys(candidate.cats).filter(c => moodCats.includes(c)).length;
+  return overlap >= 2 ? 5 : overlap === 1 ? 2 : -3;
+}
+
+/**
+ * Compute composite score (0–100) for a candidate destination
+ */
+function scoreCandidate(candidate, metrics, selectedMonth, mood) {
+  const s1 = scoreWishlistDensity(candidate);
+  const s2 = scoreCategoryAlignment(candidate, metrics);
+  const s3 = scoreNovelty(candidate, metrics);
+  const s4 = scoreAgreement(candidate, metrics);
+  const s5 = scoreSeasonal(candidate, metrics, selectedMonth);
+  const mod = moodModifier(candidate, mood);
+  const total = Math.min(100, Math.max(0, s1+s2+s3+s4+s5+mod));
+  return { total, components: { wishlist:s1, category:s2, novelty:s3, agreement:s4, seasonal:s5 } };
+}
+
+/**
+ * Determine confidence level based on data availability
+ */
+function getConfidence(candidate, metrics) {
+  const { catAvg, seasonAvg } = metrics;
+  const hasSeasonData = Object.keys(seasonAvg).some(k => k.startsWith(candidate.country+':'));
+  const hasCatData    = Object.keys(candidate.cats).some(c => catAvg[c]);
+  const dataPoints    = candidate.items.length + (hasCatData?2:0) + (hasSeasonData?2:0);
+  if (dataPoints >= 5) return 'high';
+  if (dataPoints >= 3) return 'medium';
+  return 'low';
+}
+
+/**
+ * Build human-readable explanation bullets from scoring components
+ */
+function buildReasons(candidate, scored, metrics, mood, selectedMonth) {
+  const { catAvg, top5Cats, countryAvgRating, daysSinceLast } = metrics;
+  const reasons = [];
+  const { components: c } = scored;
+
+  // Wishlist
+  if (c.wishlist >= 20) reasons.push(`${candidate.items.length} wishlist item${candidate.items.length>1?'s':''} with strong desire ratings`);
+  else if (c.wishlist >= 10) reasons.push(`${candidate.items.length} wishlist item${candidate.items.length>1?'s':''}` + (candidate.items[0]?.priority==='high' ? ' (high priority)' : ''));
+
+  // Category
+  const matchedCats = Object.keys(candidate.cats).filter(cat => top5Cats.includes(cat));
+  if (matchedCats.length) reasons.push(`Matches your top-loved categories: ${matchedCats.slice(0,2).join(', ')}`);
+
+  // Novelty
+  if (!candidate.visited) reasons.push(`Never visited ${candidate.country} \u2014 maximum novelty`);
+  else if (c.novelty >= 12) {
+    const days = daysSinceLast[candidate.country]||0;
+    reasons.push(`Last visited ${candidate.country} ${Math.round(days/30)} months ago; you loved it (${(countryAvgRating[candidate.country]||0).toFixed(1)} avg)`);
+  }
+
+  // Agreement
+  const stableMatch = Object.keys(candidate.cats).filter(cat => {
+    const ca = catAvg[cat]; return ca && ca.variance < 1.0 && ca.hunter >= 4.0 && ca.brandon >= 4.0;
+  });
+  if (stableMatch.length) reasons.push(`You both consistently rate ${stableMatch[0]} highly with low variance`);
+
+  // Seasonal
+  if (selectedMonth && c.seasonal >= 12) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    reasons.push(`${months[parseInt(selectedMonth)-1]} is a historically strong month for ${candidate.country}`);
+  }
+
+  // Mood
+  if (mood !== 'mixed') {
+    const moodLabels = {'food-focused':'food experiences','culture':'culture & arts','nature':'nature & outdoors','relaxing':'relaxing escapes','romantic':'romantic settings','energetic':'active adventures'};
+    reasons.push(`Wishlist aligns with your ${moodLabels[mood]||mood} preference`);
+  }
+
+  return reasons.slice(0, 5);
+}
+
+/** Main discover function — runs scoring and renders results */
+function runDiscover() {
+  const metrics       = getMetrics();
+  const selectedMonth = document.getElementById('disc-month').value;
+  const region        = document.getElementById('disc-region').value.trim().toLowerCase();
+  const btn           = document.getElementById('disc-generate-btn');
+  const resultEl      = document.getElementById('discover-result');
+
+  btn.textContent = 'Analyzing\u2026'; btn.disabled = true;
+  setTimeout(() => { btn.textContent = 'Generate Suggestion'; btn.disabled = false; }, 600);
+
+  let candidates = buildCandidates();
+
+  if (!candidates.length) {
+    resultEl.className = 'discover-result visible';
+    resultEl.innerHTML = `<div class="disc-empty">Add items to your Wishlist first to get smart suggestions.</div>`;
+    return;
+  }
+
+  // Filter by region if specified
+  if (region) {
+    const filtered = candidates.filter(c =>
+      c.country.toLowerCase().includes(region) ||
+      c.primaryCity.toLowerCase().includes(region)
+    );
+    if (filtered.length) candidates = filtered;
+  }
+
+  // Score all candidates
+  const scored = candidates.map(c => ({
+    candidate: c,
+    scored: scoreCandidate(c, metrics, selectedMonth, discMood)
+  })).sort((a,b) => b.scored.total - a.scored.total);
+
+  if (!scored.length) {
+    resultEl.className = 'discover-result visible';
+    resultEl.innerHTML = `<div class="disc-empty">No matching destinations found. Try clearing the region filter.</div>`;
+    return;
+  }
+
+  const primary    = scored[0];
+  const alts       = scored.slice(1, 3);
+  // Wildcard = highest novelty score
+  const wildcard   = [...scored].sort((a,b) =>
+    (b.scored.components.novelty + (b.candidate.visited?0:5)) -
+    (a.scored.components.novelty + (a.candidate.visited?0:5))
+  ).find(s => s.candidate.country !== primary.candidate.country) || scored[scored.length-1];
+
+  const confidence  = getConfidence(primary.candidate, metrics);
+  const reasons     = buildReasons(primary.candidate, primary.scored, metrics, discMood, selectedMonth);
+  const score       = Math.round(primary.scored.total);
+
+  // SVG ring for score
+  const pct     = score / 100;
+  const r       = 22, circ = 2 * Math.PI * r;
+  const dashArr = `${(pct * circ).toFixed(1)} ${circ.toFixed(1)}`;
+  const ringColor = score >= 70 ? '#6e8175' : score >= 45 ? '#859eac' : '#c4b8b7';
+
+  const renderAlt = (item, label) => {
+    if (!item) return '';
+    const s = Math.round(item.scored.total);
+    const loc = [item.candidate.primaryCity, item.candidate.country].filter(Boolean).join(', ');
+    return `<div class="disc-alt-card"><div class="disc-alt-label">${label}</div>
+      <div class="disc-alt-name">${escHtml(item.candidate.country)}</div>
+      <div class="disc-alt-loc">${escHtml(loc)}</div>
+      <div class="disc-alt-score">Score: ${s}/100</div></div>`;
+  };
+
+  const wcLoc = [wildcard.candidate.primaryCity, wildcard.candidate.country].filter(Boolean).join(', ');
+
+  resultEl.className = 'discover-result visible';
+  resultEl.innerHTML = `
+    <div class="disc-primary">
+      <div class="disc-primary-header">
+        <div class="disc-primary-label">Top Suggestion</div>
+        <div class="disc-primary-name">${escHtml(primary.candidate.country)}</div>
+        <div class="disc-primary-loc">${escHtml([primary.candidate.primaryCity, primary.candidate.country].filter(Boolean).join(', '))}</div>
+      </div>
+      <div class="disc-score-row">
+        <svg class="disc-score-ring" width="60" height="60" viewBox="0 0 60 60">
+          <circle cx="30" cy="30" r="${r}" fill="none" stroke="#eef0ed" stroke-width="5"/>
+          <circle cx="30" cy="30" r="${r}" fill="none" stroke="${ringColor}" stroke-width="5"
+            stroke-dasharray="${dashArr}" stroke-dashoffset="${circ*0.25}" stroke-linecap="round"
+            transform="rotate(-90 30 30)"/>
+          <text x="30" y="35" text-anchor="middle" font-family="var(--sys-d)" font-size="13" font-weight="700" fill="${ringColor}">${score}</text>
+        </svg>
+        <div class="disc-score-info">
+          <div class="disc-score-num">${score}<span style="font-size:16px;">/100</span></div>
+          <span class="disc-confidence ${confidence}">${confidence.charAt(0).toUpperCase()+confidence.slice(1)} confidence</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--text-light);">
+          <span>Wishlist: ${Math.round(primary.scored.components.wishlist)}/30</span>
+          <span>Category: ${Math.round(primary.scored.components.category)}/25</span>
+          <span>Novelty: ${Math.round(primary.scored.components.novelty)}/15</span>
+        </div>
+      </div>
+      <div class="disc-reasons">
+        <div class="disc-reasons-title">Why this was suggested</div>
+        ${reasons.map(r=>`<div class="disc-reason-item"><div class="disc-reason-dot"></div><span>${escHtml(r)}</span></div>`).join('')}
+      </div>
+    </div>
+    ${alts.length ? `<div class="disc-alts">${alts.map((a,i)=>renderAlt(a,i===0?'Alternative 1':'Alternative 2')).join('')}</div>` : ''}
+    ${wildcard && wildcard.candidate.country !== primary.candidate.country ? `
+    <div class="disc-wildcard">
+      <div class="disc-wildcard-label">&#x2605; Wildcard — Highest Novelty</div>
+      <div class="disc-wildcard-name">${escHtml(wildcard.candidate.country)}</div>
+      <div class="disc-wildcard-sub">${escHtml(wcLoc)} &middot; Score: ${Math.round(wildcard.scored.total)}/100</div>
+    </div>` : ''}`;
+}
+
+
+// ═══════════════════════════════════════════
+//  PHASE III — ENHANCED STATS
+//  Replaces the existing renderStats() with richer visuals
+// ═══════════════════════════════════════════
+
+const CAT_COLORS=['#97ac9f','#859eac','#b0a89f','#c4b8b7','#7a9688','#6a8494','#8f7f7e','#adbfb4','#9eadb6','#c6afa4','#748c7c','#788f9c'];
+
+let _statsDataHash = null; // track if stats need rebuild
+
+function renderStats() {
+  // Return early if data hasn't changed since last render
+  const h = dataHash();
+  if (_statsDataHash === h && document.getElementById('stats-container').innerHTML.length > 200) return;
+  _statsDataHash = h;
+
+  const m        = getMetrics();
+  const places   = DB.places;
+  const visits   = DB.visits;
+  const trips    = DB.trips;
+  const wishlist = DB.wishlist;
+
+  const countries = new Set(places.map(p=>p.country).filter(Boolean));
+  const allH = visits.map(v=>v.hunterRating).filter(r=>r>0);
+  const allB = visits.map(v=>v.brandonRating).filter(r=>r>0);
+  const hAvg = allH.length ? allH.reduce((a,b)=>a+b,0)/allH.length : 0;
+  const bAvg = allB.length ? allB.reduce((a,b)=>a+b,0)/allB.length : 0;
+  const allRatings = [...allH,...allB];
+
+  const container = document.getElementById('stats-container');
+  container.innerHTML = '';
+
+  // ── 1. RATING DISTRIBUTION BAR CHART ──
+  const ratingBuckets = {};
+  for (let v=0.5; v<=5.0; v+=0.5) ratingBuckets[v.toFixed(1)] = 0;
+  allRatings.forEach(r => { const k=(Math.round(r*2)/2).toFixed(1); if(ratingBuckets[k]!==undefined) ratingBuckets[k]++; });
+  const maxBucket = Math.max(1, ...Object.values(ratingBuckets));
+  const ratingBarsHtml = Object.entries(ratingBuckets).map(([label,count]) => {
+    const pct = count ? Math.max(8,(count/maxBucket)*100) : 0;
+    return `<div class="rating-bar-col">
+      <div class="rating-bar-track"><div class="rating-bar-fill ${count?'has-data':'no-data'}" style="height:${count?pct+'%':'3px'};" title="${label}: ${count}"></div></div>
+      <div class="rating-bar-label">${label}</div>
+    </div>`;
+  }).join('');
+  container.innerHTML += `
+  <div class="stats-section">
+    <div class="stats-section-label">Rating Distribution</div>
+    <div class="stats-chart-card">
+      <div class="rating-bars">${ratingBarsHtml}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;">
+        <span style="font-size:11px;color:var(--text-light);">${allRatings.length} total ratings</span>
+        <span style="font-size:11px;color:var(--text-muted);">H avg <strong style="color:var(--hunter-dark);">${hAvg?hAvg.toFixed(1):'\u2014'}</strong> &nbsp; B avg <strong style="color:var(--brandon-dark);">${bAvg?bAvg.toFixed(1):'\u2014'}</strong></span>
+      </div>
+    </div>
+  </div>`;
+
+  // ── 2. OVERVIEW CARDS ──
+  const totalWish = wishlist.length;
+  const convertedNames = new Set(places.map(p=>p.name.toLowerCase()));
+  const converted = wishlist.filter(w=>convertedNames.has(w.name.toLowerCase())).length;
+  const wishConvRate = totalWish ? Math.round(converted/totalWish*100)+'%' : '\u2014';
+  container.innerHTML += `
+  <div class="stats-section">
+    <div class="stats-section-label">Overview</div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-label">Places</div><div class="stat-value">${places.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Visits</div><div class="stat-value">${visits.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Countries</div><div class="stat-value">${countries.size}</div><div class="stat-sub">${[...countries].slice(0,3).join(', ')}${countries.size>3?'\u2026':''}</div></div>
+      <div class="stat-card trip-card"><div class="stat-label">Trips</div><div class="stat-value">${trips.length}</div></div>
+    </div>
+  </div>`;
+
+  // ── 3. CATEGORY BREAKDOWN (horizontal bars + avg rating overlay) ──
+  const catCounts = {}, catRatingsMap = {};
+  places.forEach(p => {
+    if (!p.category) return;
+    catCounts[p.category] = (catCounts[p.category]||0) + 1;
+  });
+  visits.forEach(v => {
+    const p = places.find(x=>x.id===v.placeId); if (!p||!p.category) return;
+    if (!catRatingsMap[p.category]) catRatingsMap[p.category] = [];
+    if (v.hunterRating > 0) catRatingsMap[p.category].push(v.hunterRating);
+    if (v.brandonRating > 0) catRatingsMap[p.category].push(v.brandonRating);
+  });
+  const catEntries = Object.entries(catCounts).sort((a,b)=>b[1]-a[1]);
+  const maxCatCount = Math.max(1, ...catEntries.map(([,v])=>v));
+  if (catEntries.length) {
+    const barsHtml = catEntries.map(([cat, count], i) => {
+      const avgArr = catRatingsMap[cat]||[];
+      const avg = avgArr.length ? avgArr.reduce((a,b)=>a+b,0)/avgArr.length : 0;
+      const pct = (count/maxCatCount*100).toFixed(0);
+      const ratingPct = avg ? (avg/5*100).toFixed(0) : 0;
+      return `<div class="hbar-row" style="flex-direction:column;align-items:stretch;gap:3px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="hbar-label">${escHtml(cat)}</span>
+          <span style="font-size:10px;color:var(--text-muted);">${count} place${count>1?'s':''}${avg?` · ${avg.toFixed(1)}\u2605`:''}</span>
+        </div>
+        <div style="position:relative;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${CAT_COLORS[i%CAT_COLORS.length]};border-radius:5px;"></div>
+          ${avg ? `<div style="position:absolute;left:0;top:0;height:100%;width:${ratingPct}%;background:rgba(110,129,117,0.3);border-radius:5px;border-right:2px solid var(--dark-sage);pointer-events:none;"></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    container.innerHTML += `
+    <div class="stats-section">
+      <div class="stats-section-label">By Category</div>
+      <div class="stats-chart-card">
+        <div style="font-size:10px;color:var(--text-light);margin-bottom:10px;">Bar = place count &nbsp; Green line = avg rating</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">${barsHtml}</div>
+      </div>
+    </div>`;
+  }
+
+  // ── 4. TRAVEL TIMELINE (SVG line chart — visits per month) ──
+  if (visits.length >= 2) {
+    // Build monthly buckets over last 24 months
+    const now = new Date();
+    const buckets = [];
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      buckets.push({ label: d.toLocaleDateString('en-US',{month:'short',year:'2-digit'}), y:d.getFullYear(), m:d.getMonth()+1, count:0, avgR:[] });
+    }
+    visits.forEach(v => {
+      const [yr, mo] = v.date.split('-').map(Number);
+      const b = buckets.find(b => b.y===yr && b.m===mo);
+      if (!b) return;
+      b.count++;
+      if (v.hunterRating > 0) b.avgR.push(v.hunterRating);
+      if (v.brandonRating > 0) b.avgR.push(v.brandonRating);
+    });
+    const maxCount = Math.max(1, ...buckets.map(b=>b.count));
+    const W = 340, H = 80, pad = 10;
+    const xStep = (W-pad*2)/(buckets.length-1);
+    // Visits line
+    const visitsPoints = buckets.map((b,i) => `${(pad+i*xStep).toFixed(1)},${(H-pad-(b.count/maxCount*(H-pad*2))).toFixed(1)}`).join(' ');
+    // Avg rating line (scale 0-5 → H)
+    const ratingPoints = buckets.map((b,i) => {
+      const avg = b.avgR.length ? b.avgR.reduce((a,c)=>a+c,0)/b.avgR.length : null;
+      const y = avg ? H-pad-(avg/5*(H-pad*2)) : null;
+      return y !== null ? `${(pad+i*xStep).toFixed(1)},${y.toFixed(1)}` : null;
+    }).filter(Boolean).join(' ');
+    // Labels (every 6th)
+    const labelsHtml = buckets.map((b,i) => i%6===0 ? `<text x="${(pad+i*xStep).toFixed(0)}" y="${H+12}" font-size="8" fill="var(--text-light)" text-anchor="middle">${b.label}</text>` : '').join('');
+    container.innerHTML += `
+    <div class="stats-section">
+      <div class="stats-section-label">Travel Timeline <span style="font-size:9px;font-weight:400;">(24 months)</span></div>
+      <div class="stats-chart-card">
+        <svg class="scatter-svg" viewBox="0 0 ${W} ${H+16}" xmlns="http://www.w3.org/2000/svg">
+          <line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="var(--border)" stroke-width="0.5"/>
+          ${buckets.map((_,i)=>i%6===0?`<line x1="${(pad+i*xStep).toFixed(0)}" y1="${pad}" x2="${(pad+i*xStep).toFixed(0)}" y2="${H-pad}" stroke="var(--border)" stroke-width="0.5"/>`:``).join('')}
+          <polyline points="${visitsPoints}" fill="none" stroke="var(--slate)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${ratingPoints ? `<polyline points="${ratingPoints}" fill="none" stroke="var(--dark-sage)" stroke-width="1.5" stroke-dasharray="3 2" stroke-linejoin="round"/>` : ''}
+          ${buckets.map((b,i)=>b.count>0?`<circle cx="${(pad+i*xStep).toFixed(1)}" cy="${(H-pad-(b.count/maxCount*(H-pad*2))).toFixed(1)}" r="3" fill="var(--slate)"/>`:'').join('')}
+          ${labelsHtml}
+        </svg>
+        <div style="display:flex;gap:14px;margin-top:4px;">
+          <span style="font-size:10px;color:var(--slate);display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:20px;height:2px;background:var(--slate);border-radius:1px;"></span>Visits</span>
+          <span style="font-size:10px;color:var(--dark-sage);display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:20px;height:2px;background:var(--dark-sage);border-radius:1px;"></span>Avg Rating</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── 5. COUNTRY HEAT TABLE ──
+  const countryData = [];
+  const countryVisitCounts = {};
+  const countryRatingLists = {};
+  visits.forEach(v => {
+    const p = places.find(x=>x.id===v.placeId); if (!p||!p.country) return;
+    countryVisitCounts[p.country] = (countryVisitCounts[p.country]||0)+1;
+    if (!countryRatingLists[p.country]) countryRatingLists[p.country] = [];
+    if (v.hunterRating > 0) countryRatingLists[p.country].push(v.hunterRating);
+    if (v.brandonRating > 0) countryRatingLists[p.country].push(v.brandonRating);
+  });
+  Object.entries(countryVisitCounts).forEach(([country, count]) => {
+    const arr = countryRatingLists[country]||[];
+    const avg = arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+    countryData.push({ country, count, avg });
+  });
+  countryData.sort((a,b)=>b.count-a.count);
+  if (countryData.length) {
+    const maxC = Math.max(1, ...countryData.map(d=>d.count));
+    const rowsHtml = countryData.map(d => {
+      const intensity = d.count / maxC;
+      const bgOpacity = 0.04 + intensity * 0.12;
+      return `<div class="country-heat-row">
+        <div class="country-heat-bg" style="background:rgba(110,129,117,${bgOpacity});"></div>
+        <span class="country-heat-name">${escHtml(d.country)}</span>
+        <span class="country-heat-visits">${d.count} v</span>
+        <span class="country-heat-rating">${d.avg?d.avg.toFixed(1):'\u2014'}</span>
+      </div>`;
+    }).join('');
+    container.innerHTML += `
+    <div class="stats-section">
+      <div class="stats-section-label">Country Heat Table</div>
+      <div class="stats-chart-card">
+        <div style="display:flex;justify-content:flex-end;font-size:10px;color:var(--text-light);margin-bottom:6px;gap:14px;"><span>Visits</span><span>Avg \u2605</span></div>
+        <div class="country-heat-table">${rowsHtml}</div>
+      </div>
+    </div>`;
+  }
+
+  // ── 6. RATING AGREEMENT SCATTER PLOT ──
+  const bothRated = visits.filter(v=>v.hunterRating>0&&v.brandonRating>0);
+  if (bothRated.length >= 2) {
+    const SW=280, SH=200, spd=24;
+    // Scale: 0.5–5 → spd..SW-spd, SH-spd..spd
+    const sx = v => spd + (v-0.5)/(5-0.5)*(SW-spd*2);
+    const sy = v => SH-spd - (v-0.5)/(5-0.5)*(SH-spd*2);
+    const dots = bothRated.map(v => {
+      const p = places.find(x=>x.id===v.placeId);
+      return `<circle cx="${sx(v.hunterRating).toFixed(1)}" cy="${sy(v.brandonRating).toFixed(1)}" r="5" fill="var(--sage)" fill-opacity="0.7" stroke="var(--dark-sage)" stroke-width="0.5"><title>${escHtml(p?.name||'')} H:${v.hunterRating} B:${v.brandonRating}</title></circle>`;
+    }).join('');
+    // Diagonal line (perfect agreement)
+    const diag = `<line x1="${sx(0.5).toFixed(0)}" y1="${sy(0.5).toFixed(0)}" x2="${sx(5).toFixed(0)}" y2="${sy(5).toFixed(0)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"/>`;
+    // Axis labels
+    const xLabels = [1,2,3,4,5].map(v=>`<text x="${sx(v).toFixed(0)}" y="${SH-6}" font-size="8" fill="var(--text-light)" text-anchor="middle">${v}</text>`).join('');
+    const yLabels = [1,2,3,4,5].map(v=>`<text x="8" y="${sy(v).toFixed(0)+4}" font-size="8" fill="var(--text-light)" text-anchor="middle">${v}</text>`).join('');
+    container.innerHTML += `
+    <div class="stats-section">
+      <div class="stats-section-label">Rating Agreement</div>
+      <div class="stats-chart-card">
+        <div style="font-size:10px;color:var(--text-light);margin-bottom:8px;">Each dot = one visit &nbsp; Dashed line = perfect agreement</div>
+        <div style="overflow-x:auto;">
+          <svg viewBox="0 0 ${SW} ${SH}" xmlns="http://www.w3.org/2000/svg" style="display:block;min-width:${SW}px;">
+            <line x1="${spd}" y1="${spd}" x2="${spd}" y2="${SH-spd}" stroke="var(--border)" stroke-width="0.5"/>
+            <line x1="${spd}" y1="${SH-spd}" x2="${SW-spd}" y2="${SH-spd}" stroke="var(--border)" stroke-width="0.5"/>
+            ${diag}${dots}${xLabels}${yLabels}
+            <text x="${SW/2}" y="${SH}" font-size="8" fill="var(--text-muted)" text-anchor="middle">Hunter Rating</text>
+            <text x="6" y="${SH/2}" font-size="8" fill="var(--text-muted)" text-anchor="middle" transform="rotate(-90 6 ${SH/2})">Brandon</text>
+          </svg>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── 7. WISHLIST CONVERSION METER (SVG circular progress) ──
+  if (wishlist.length > 0) {
+    const total   = wishlist.length;
+    const done    = wishlist.filter(w=>convertedNames.has(w.name.toLowerCase())).length;
+    const pct     = total ? done/total : 0;
+    const r2      = 36, c2 = 2*Math.PI*r2;
+    const dashAr2 = `${(pct*c2).toFixed(1)} ${c2.toFixed(1)}`;
+    container.innerHTML += `
+    <div class="stats-section">
+      <div class="stats-section-label">Wishlist Conversion</div>
+      <div class="stats-chart-card">
+        <div style="display:flex;align-items:center;gap:20px;">
+          <svg width="90" height="90" viewBox="0 0 90 90" style="flex-shrink:0;">
+            <circle cx="45" cy="45" r="${r2}" fill="none" stroke="var(--surface2)" stroke-width="7"/>
+            <circle cx="45" cy="45" r="${r2}" fill="none" stroke="var(--wish-color)" stroke-width="7"
+              stroke-dasharray="${dashAr2}" stroke-linecap="round" transform="rotate(-90 45 45)"/>
+            <text x="45" y="49" text-anchor="middle" font-family="var(--sys-d)" font-size="14" font-weight="700" fill="var(--text)">${Math.round(pct*100)}%</text>
+          </svg>
+          <div>
+            <div style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.03em;">${done}<span style="font-size:14px;color:var(--text-muted)">/${total}</span></div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Wishlist items visited</div>
+            <div style="font-size:11px;color:var(--wish-color);margin-top:6px;font-weight:600;">${total-done} remaining</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── 8. TRIP PERFORMANCE CARDS ──
+  if (trips.length) {
+    const tripCards = trips.map(t => {
+      const tv = visits.filter(v=>v.tripId===t.id);
+      const places_set = new Set(tv.map(v=>v.placeId));
+      const dur = t.startDate&&t.endDate ? Math.round((new Date(t.endDate)-new Date(t.startDate))/86400000)+1 : null;
+      const allR = [...tv.map(v=>v.hunterRating),...tv.map(v=>v.brandonRating)].filter(r=>r>0);
+      const avg = allR.length ? allR.reduce((a,b)=>a+b,0)/allR.length : 0;
+      const perf = Math.min(100, avg/5*100);
+      return `<div class="trip-perf-card">
+        <div class="trip-perf-name">${escHtml(t.name)}</div>
+        <div class="trip-perf-meta">${dur?dur+'d':'?'} &nbsp; ${places_set.size} places &nbsp; ${tv.length} visits ${avg?'&nbsp; '+avg.toFixed(1)+'\u2605':''}</div>
+        <div class="trip-perf-bar-track"><div class="trip-perf-bar-fill" style="width:${perf.toFixed(0)}%;"></div></div>
+      </div>`;
+    }).join('');
+    container.innerHTML += `
+    <div class="stats-section">
+      <div class="stats-section-label">Trip Performance</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">${tripCards}</div>
+    </div>`;
+  }
+
+  // ── 9. HIGHLIGHTS ──
+  const mvPlace  = places.length ? [...places].sort((a,b)=>(b.totalVisits||0)-(a.totalVisits||0))[0] : null;
+  const topRated = places.filter(p=>p.avgRating).sort((a,b)=>b.avgRating-a.avgRating)[0]||null;
+  const polarizing = places.filter(p=>p.hunterAvg>0&&p.brandonAvg>0).sort((a,b)=>Math.abs(b.hunterAvg-b.brandonAvg)-Math.abs(a.hunterAvg-a.brandonAvg))[0];
+  if (places.length) {
+    let h = '<div class="stat-grid">';
+    if (mvPlace)   h += `<div class="stat-card full"><div class="stat-label">Most Revisited</div><div class="stat-value" style="font-size:18px;margin-top:4px;">${escHtml(mvPlace.name)}</div><div class="stat-sub">${mvPlace.totalVisits} visits${mvPlace.city?' \u00B7 '+mvPlace.city:''}</div></div>`;
+    if (topRated)  h += `<div class="stat-card full"><div class="stat-label">Top Rated</div><div class="stat-value" style="font-size:18px;margin-top:4px;">${escHtml(topRated.name)}</div><div class="stat-sub">${topRated.avgRating.toFixed(1)} avg \u00B7 ${topRated.category||''}</div></div>`;
+    if (polarizing)h += `<div class="stat-card full"><div class="stat-label">Most Polarizing</div><div class="stat-value" style="font-size:16px;margin-top:4px;">${escHtml(polarizing.name)}</div><div class="stat-sub">H: ${polarizing.hunterAvg.toFixed(1)} vs B: ${polarizing.brandonAvg.toFixed(1)}</div></div>`;
+    h += '</div>';
+    container.innerHTML += `<div class="stats-section"><div class="stats-section-label">Highlights</div>${h}</div>`;
+  } else {
+    container.innerHTML += `<div class="stats-section"><div class="empty-state" style="padding:30px 0;"><p>Add places to see your stats!</p></div></div>`;
+  }
+}
+
+
+// ═══════════════════════════════════════════
+//  PHASE III — GOOGLE DRIVE SYNC
+//
+//  SETUP INSTRUCTIONS:
+//  1. Go to https://console.cloud.google.com/
+//  2. Create a new project (e.g. "PinDrop")
+//  3. Enable "Google Drive API" and "Google Picker API"
+//  4. Create OAuth 2.0 credentials (Web Application)
+//     - Authorized JS origins: your domain or http://localhost
+//     - Authorized redirect URIs: same
+//  5. Replace DRIVE_CLIENT_ID and DRIVE_API_KEY below with your credentials
+//  6. The app will create/update a file called "pindrop-data.json" in Drive root
+//
+//  NOTE: Without valid credentials the sync UI still shows but auth will fail gracefully.
+// ═══════════════════════════════════════════
+
+const DRIVE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'; // ← replace
+const DRIVE_API_KEY   = 'YOUR_GOOGLE_API_KEY';                               // ← replace
+const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILE_NAME = 'pindrop-data.json';
+
+let driveState = {
+  status:    'offline',   // 'offline' | 'synced' | 'syncing' | 'error'
+  fileId:    null,
+  token:     null,
+  lastSync:  null,
+  retryTimer: null
+};
+
+// Restore sync state from localStorage
+(function initDriveState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('pd_drive_state')||'{}');
+    if (saved.fileId) driveState.fileId = saved.fileId;
+    if (saved.lastSync) driveState.lastSync = saved.lastSync;
+  } catch(e) {}
+})();
+
+function saveDriveState() {
+  localStorage.setItem('pd_drive_state', JSON.stringify({
+    fileId: driveState.fileId,
+    lastSync: driveState.lastSync
+  }));
+}
+
+function setSyncStatus(status, label) {
+  driveState.status = status;
+  const bar  = document.getElementById('sync-bar');
+  const dot  = document.getElementById('sync-dot');
+  const lbl  = document.getElementById('sync-label');
+  const btn  = document.getElementById('sync-action-btn');
+  dot.className = 'sync-dot ' + status;
+  lbl.textContent = label;
+  btn.textContent = status === 'offline' ? 'Connect' : status === 'error' ? 'Retry' : 'Sync';
+  bar.classList.remove('hidden');
+}
+
+// Show sync bar if Drive was previously connected
+if (driveState.fileId) setSyncStatus('offline', 'Drive: reconnect needed');
+
+document.getElementById('sync-action-btn').addEventListener('click', () => {
+  if (DRIVE_CLIENT_ID.startsWith('YOUR_')) {
+    toast('Add your Google Client ID to enable Drive sync.');
+    return;
+  }
+  if (driveState.status === 'synced') {
+    triggerDriveSync(); // manual sync
+  } else {
+    startDriveAuth();
+  }
+});
+
+/** Initiate Google OAuth flow */
+function startDriveAuth() {
+  if (!window.google?.accounts?.oauth2) {
+    // Load Google Identity Services library
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = () => initDriveAuth();
+    s.onerror = () => setSyncStatus('error', 'Drive: failed to load auth');
+    document.head.appendChild(s);
+  } else {
+    initDriveAuth();
+  }
+}
+
+function initDriveAuth() {
+  setSyncStatus('syncing', 'Drive: authenticating\u2026');
+  try {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: DRIVE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: (resp) => {
+        if (resp.error) { setSyncStatus('error', 'Drive: auth failed'); return; }
+        driveState.token = resp.access_token;
+        triggerDriveSync();
+      }
+    });
+    client.requestAccessToken();
+  } catch(e) {
+    setSyncStatus('error', 'Drive: auth error');
+  }
+}
+
+/** Export all data as JSON and upload to Drive */
+async function triggerDriveSync() {
+  if (!driveState.token) { startDriveAuth(); return; }
+  setSyncStatus('syncing', 'Drive: syncing\u2026');
+
+  const payload = JSON.stringify({
+    updatedAt: new Date().toISOString(),
+    places:    DB.places,
+    visits:    DB.visits,
+    trips:     DB.trips,
+    wishlist:  DB.wishlist
+  });
+
+  try {
+    // First: check if file already exists
+    if (!driveState.fileId) {
+      const search = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILE_NAME}'&spaces=drive&fields=files(id,modifiedTime)`,
+        { headers: { Authorization: `Bearer ${driveState.token}` } }
+      );
+      const data = await search.json();
+      if (data.files?.length) {
+        driveState.fileId = data.files[0].id;
+        // Check remote timestamp to prevent silent overwrite
+        const remoteTs = new Date(data.files[0].modifiedTime).getTime();
+        const localTs  = driveState.lastSync ? new Date(driveState.lastSync).getTime() : 0;
+        if (remoteTs > localTs + 5000) {
+          // Remote is newer — offer to download instead
+          if (confirm('Drive has newer data. Overwrite Drive with your local data?')) {
+            // continue with upload
+          } else {
+            await downloadFromDrive();
+            return;
+          }
+        }
+      }
+    }
+
+    const meta   = { name: DRIVE_FILE_NAME, mimeType: 'application/json' };
+    const form   = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+    form.append('file', new Blob([payload], { type: 'application/json' }));
+
+    const url = driveState.fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${driveState.fileId}?uploadType=multipart`
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    const method = driveState.fileId ? 'PATCH' : 'POST';
+
+    const res = await fetch(url, {
+      method, headers: { Authorization: `Bearer ${driveState.token}` }, body: form
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const json = await res.json();
+    driveState.fileId  = json.id;
+    driveState.lastSync = new Date().toISOString();
+    saveDriveState();
+    setSyncStatus('synced', `Synced ${new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}`);
+  } catch(e) {
+    console.error('Drive sync error:', e);
+    setSyncStatus('error', 'Drive: sync failed');
+    // Retry after 30s
+    clearTimeout(driveState.retryTimer);
+    driveState.retryTimer = setTimeout(triggerDriveSync, 30000);
+  }
+}
+
+/** Download data from Drive and merge into local DB */
+async function downloadFromDrive() {
+  if (!driveState.token || !driveState.fileId) return;
+  setSyncStatus('syncing', 'Drive: downloading\u2026');
+  try {
+    const res  = await fetch(`https://www.googleapis.com/drive/v3/files/${driveState.fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${driveState.token}` } });
+    const data = await res.json();
+    if (data.places)   DB.places   = data.places;
+    if (data.visits)   DB.visits   = data.visits;
+    if (data.trips)    DB.trips    = data.trips;
+    if (data.wishlist) DB.wishlist = data.wishlist;
+    invalidateMetrics();
+    renderList(); renderStats(); renderWishlist();
+    driveState.lastSync = new Date().toISOString();
+    saveDriveState();
+    setSyncStatus('synced', 'Drive: synced from cloud');
+    toast('Data loaded from Drive!');
+  } catch(e) {
+    setSyncStatus('error', 'Drive: download failed');
+  }
+}
+
+// Auto-sync after data saves (debounced)
+let _syncDebounce = null;
+function scheduleDriveSync() {
+  if (driveState.status !== 'synced' && driveState.status !== 'syncing') return;
+  clearTimeout(_syncDebounce);
+  _syncDebounce = setTimeout(triggerDriveSync, 3000);
+}
+
+
+// ═══════════════════════════════════════════
+//  PATCH switchView TO HANDLE DISCOVER
+// ═══════════════════════════════════════════
+const _origSwitchView = switchView;
+function switchView(view, btn) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+view)?.classList.add('active');
+  (btn||document.querySelector(`.nav-btn[data-view="${view}"]`))?.classList.add('active');
+  if(view==='list')     renderList();
+  if(view==='calendar') renderCalendar();
+  if(view==='stats')    renderStats();
+  if(view==='wishlist') renderWishlist();
+  if(view==='map')      initMap();
+  // discover view has no special init — form state is preserved
+}
+
+</script>
+</body>
+</html>
